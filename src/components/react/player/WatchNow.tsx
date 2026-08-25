@@ -68,6 +68,14 @@ export interface WatchNowProps {
   related?: RelatedTitle[];
   /** UI language for the player chrome. */
   locale?: Locale;
+  /** Genre names for automatic maturity and content advisory computation */
+  genres?: string[];
+  /** Rating score */
+  rating?: number;
+  /** Explicit rating badge e.g. "Rated U/A 13+" */
+  ratingBadge?: string;
+  /** Explicit content advisory description */
+  contentAdvisory?: string;
 }
 
 export default function WatchNow({
@@ -82,6 +90,10 @@ export default function WatchNow({
   markers = [],
   related = [],
   locale = 'en',
+  genres = [],
+  rating,
+  ratingBadge,
+  contentAdvisory,
 }: WatchNowProps) {
   /**
    * Locale is resolved in the browser, not on the server. Detail pages are
@@ -702,6 +714,41 @@ export default function WatchNow({
     />
   ) : null;
 
+  const { derivedBadge, derivedAdvisory } = useMemo(() => {
+    let badge = ratingBadge;
+    const g = (genres || []).map((x) => String(x).toLowerCase());
+
+    if (!badge) {
+      if (g.includes('horror') || (rating && rating >= 8 && g.includes('crime'))) {
+        badge = 'Rated 18+';
+      } else if (g.includes('crime') || g.includes('thriller') || g.includes('mystery')) {
+        badge = 'Rated U/A 16+';
+      } else if (g.includes('animation') || g.includes('family')) {
+        badge = 'Rated U';
+      } else {
+        badge = 'Rated U/A 13+';
+      }
+    }
+
+    let advisory = contentAdvisory;
+    if (!advisory) {
+      const tags: string[] = [];
+      if (g.includes('horror') || g.includes('thriller') || g.includes('mystery')) {
+        tags.push('frightening scenes');
+      }
+      if (g.includes('romance') || g.includes('drama')) {
+        tags.push('sexual content');
+      }
+      if (g.includes('action') || g.includes('adventure') || g.includes('crime') || g.includes('war') || g.includes('horror')) {
+        tags.push('violence');
+      }
+      tags.push('tobacco depictions', 'alcohol use');
+      advisory = Array.from(new Set(tags)).slice(0, 5).join(', ');
+    }
+
+    return { derivedBadge: badge, derivedAdvisory: advisory };
+  }, [genres, rating, ratingBadge, contentAdvisory]);
+
   const splashTitle = resumeAt
     ? `${title} — ${Math.floor(resumeAt / 60)}m`
     : title;
@@ -720,6 +767,8 @@ export default function WatchNow({
         onReload={reload}
         markers={markers}
         showAutoplayNext={isSeries}
+        ratingBadge={derivedBadge}
+        contentAdvisory={derivedAdvisory}
         episodeNav={
           isSeries
             ? {

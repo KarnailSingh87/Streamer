@@ -169,70 +169,98 @@ export default function SeekBar({
     return Math.min(Math.max(raw, PREVIEW_WIDTH / 2), width - PREVIEW_WIDTH / 2);
   })();
 
+  // Chapter/scene ticks (markers or standard interval ticks)
+  const ticks = useMemo(() => {
+    if (markers.length > 0 && safeDuration > 0) {
+      return markers.map((m) => (m.start / safeDuration) * 100);
+    }
+    return [16, 33, 50, 68, 84];
+  }, [markers, safeDuration]);
+
   return (
-    <div className="fp-seek" dir="ltr">
-      {showPreview && (
+    <div className="fp-seek-row" dir="ltr">
+      <span className="fp-seek-time fp-seek-time-current" aria-hidden="true">
+        {formatTime(displayTime)}
+      </span>
+
+      <div className="fp-seek-track-wrapper">
+        {showPreview && (
+          <div
+            className="fp-seek-preview"
+            style={{ left: `${previewLeft}px` }}
+            aria-hidden="true"
+          >
+            {frame && (
+              <span
+                className="fp-seek-preview-img"
+                style={{
+                  backgroundImage: `url(${frame.url})`,
+                  // Sprite sheets need an offset + intrinsic size; standalone
+                  // frames report w/h and a zero offset, so one formula covers both.
+                  backgroundPosition: `-${frame.x}px -${frame.y}px`,
+                  backgroundSize: frame.x || frame.y ? 'auto' : 'cover',
+                  aspectRatio: frame.w && frame.h ? `${frame.w} / ${frame.h}` : '16 / 9',
+                }}
+              />
+            )}
+            <span className="fp-seek-preview-time">{formatTime(previewTime)}</span>
+          </div>
+        )}
+
         <div
-          className="fp-seek-preview"
-          style={{ left: `${previewLeft}px` }}
-          aria-hidden="true"
+          ref={trackRef}
+          className={`fp-seek-track${seekable ? '' : ' is-readonly'}`}
+          role="slider"
+          tabIndex={seekable ? 0 : -1}
+          aria-label={t('seek')}
+          aria-valuemin={0}
+          aria-valuemax={Math.max(0, Math.round(safeDuration))}
+          aria-valuenow={Math.round(displayTime)}
+          // Screen readers read "1:05:09" as digits; a spoken form is clearer.
+          aria-valuetext={`${spokenTime(displayTime)} / ${spokenTime(safeDuration)}`}
+          aria-readonly={!seekable}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onPointerLeave={() => setHoverTime(null)}
+          onKeyDown={onKeyDown}
         >
-          {frame && (
-            <span
-              className="fp-seek-preview-img"
-              style={{
-                backgroundImage: `url(${frame.url})`,
-                // Sprite sheets need an offset + intrinsic size; standalone
-                // frames report w/h and a zero offset, so one formula covers both.
-                backgroundPosition: `-${frame.x}px -${frame.y}px`,
-                backgroundSize: frame.x || frame.y ? 'auto' : 'cover',
-                aspectRatio: frame.w && frame.h ? `${frame.w} / ${frame.h}` : '16 / 9',
-              }}
-            />
-          )}
-          <span className="fp-seek-preview-time">{formatTime(previewTime)}</span>
-        </div>
-      )}
+          <span className="fp-seek-rail" />
+          <span className="fp-seek-buffer" style={{ transform: `scaleX(${bufferedEnd})` }} />
+          <span className="fp-seek-played" style={{ transform: `scaleX(${progress})` }} />
 
-      <div
-        ref={trackRef}
-        className={`fp-seek-track${seekable ? '' : ' is-readonly'}`}
-        role="slider"
-        tabIndex={seekable ? 0 : -1}
-        aria-label={t('seek')}
-        aria-valuemin={0}
-        aria-valuemax={Math.max(0, Math.round(safeDuration))}
-        aria-valuenow={Math.round(displayTime)}
-        // Screen readers read "1:05:09" as digits; a spoken form is clearer.
-        aria-valuetext={`${spokenTime(displayTime)} / ${spokenTime(safeDuration)}`}
-        aria-readonly={!seekable}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onPointerLeave={() => setHoverTime(null)}
-        onKeyDown={onKeyDown}
-      >
-        <span className="fp-seek-rail" />
-        <span className="fp-seek-buffer" style={{ transform: `scaleX(${bufferedEnd})` }} />
-        <span className="fp-seek-played" style={{ transform: `scaleX(${progress})` }} />
-
-        {/* Chapter markers (intro / recap / credits) as notches on the rail. */}
-        {safeDuration > 0 &&
-          markers.map((m) => (
+          {/* Chapter / Scene tick dots along the track as seen in OTT UI */}
+          {ticks.map((pct, idx) => (
             <span
-              key={`${m.kind}-${m.start}`}
-              className={`fp-seek-marker fp-seek-marker-${m.kind}`}
-              style={{
-                left: `${(m.start / safeDuration) * 100}%`,
-                width: `${Math.max(0.4, ((m.end - m.start) / safeDuration) * 100)}%`,
-              }}
+              key={idx}
+              className="fp-seek-tick-dot"
+              style={{ left: `${pct}%` }}
               aria-hidden="true"
             />
           ))}
 
-        {seekable && <span className="fp-seek-handle" style={{ left: `${progress * 100}%` }} />}
+          {/* Chapter marker bands (intro / recap / credits) */}
+          {safeDuration > 0 &&
+            markers.map((m) => (
+              <span
+                key={`${m.kind}-${m.start}`}
+                className={`fp-seek-marker fp-seek-marker-${m.kind}`}
+                style={{
+                  left: `${(m.start / safeDuration) * 100}%`,
+                  width: `${Math.max(0.4, ((m.end - m.start) / safeDuration) * 100)}%`,
+                }}
+                aria-hidden="true"
+              />
+            ))}
+
+          {seekable && <span className="fp-seek-handle" style={{ left: `${progress * 100}%` }} />}
+        </div>
       </div>
+
+      <span className="fp-seek-time fp-seek-time-duration" aria-hidden="true">
+        {formatTime(safeDuration > 0 ? safeDuration : 0)}
+      </span>
     </div>
   );
 }

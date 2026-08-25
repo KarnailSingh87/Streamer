@@ -62,6 +62,8 @@ import {
   BackIcon,
   BrightnessIcon,
   CaptionsIcon,
+  CloseIcon,
+  DialogueIcon,
   EpisodesIcon,
   ExitFullscreenIcon,
   FullscreenIcon,
@@ -74,6 +76,7 @@ import {
   ReplayIcon,
   SkipIcon,
   SpeedIcon,
+  VerticalDotsIcon,
   VolumeIcon,
   WarningIcon,
   ZoomInIcon,
@@ -147,6 +150,10 @@ export interface PlayerShellProps {
   optimizing?: boolean;
   /** Autoplay-next preference plumbing for the overflow sheet. */
   showAutoplayNext: boolean;
+  /** Maturity / content rating pill, e.g. "Rated U/A 13+" */
+  ratingBadge?: string;
+  /** Content warning / advisory text, e.g. "frightening scenes, sexual content, violence, tobacco depictions, alcohol use" */
+  contentAdvisory?: string;
 }
 
 /** Read a rem-valued CSS custom property from an element, in pixels. */
@@ -180,6 +187,8 @@ export default function PlayerShell({
   toast,
   optimizing = false,
   showAutoplayNext,
+  ratingBadge,
+  contentAdvisory,
 }: PlayerShellProps) {
   const {
     hostRef,
@@ -839,8 +848,8 @@ export default function PlayerShell({
         {/* Embed providers keep their own playback chrome fully interactive.
             This pointer-transparent wrapper contributes only one centered
             fullscreen/minimize button; server selection remains below stage. */}
-        {/* Top bar: back + title. Hidden with the controls. */}
-        {started && engine !== 'embed' && (
+        {/* Top bar: Back/Close + Rating Badge + Advisory on Left; Subtitles/Audio + Volume + Fullscreen + Settings on Right */}
+        {started && (
           <div
             className="fp-topbar"
             onPointerEnter={(event) => {
@@ -851,21 +860,84 @@ export default function PlayerShell({
               wake();
             }}
           >
-            {onBack && (
+            <div className="fp-topbar-left">
+              {onBack && (
+                <button
+                  type="button"
+                  className="fp-btn fp-btn-ghost fp-top-close"
+                  onClick={onBack}
+                  aria-label={t('back')}
+                  title={t('back')}
+                >
+                  <CloseIcon size={24} />
+                </button>
+              )}
+              <div className="fp-rating-wrap">
+                <span className="fp-rating-pill">
+                  {ratingBadge || 'Rated U/A 13+'}
+                </span>
+                <span className="fp-rating-advisory">
+                  {contentAdvisory || 'frightening scenes, sexual content, violence, tobacco depictions, alcohol use'}
+                </span>
+              </div>
+            </div>
+
+            <div className="fp-topbar-right">
+              {/* Dialogue / Subtitles / Audio */}
+              <button
+                ref={tracksBtn}
+                type="button"
+                className={`fp-btn fp-top-btn${menu === 'tracks' ? ' is-open' : ''}`}
+                onClick={() => setMenu(menu === 'tracks' ? null : 'tracks')}
+                aria-label={t('audioAndSubtitles')}
+                title={t('audioAndSubtitles')}
+              >
+                <DialogueIcon size={22} />
+              </button>
+
+              {/* Volume */}
+              {caps.volume !== 'none' && (
+                <VolumeControl
+                  volume={prefs.volume}
+                  muted={prefs.muted}
+                  mode={caps.volume}
+                  onVolume={(value) => {
+                    setVolume(value);
+                    flashHud('volume', Math.round(value * 100));
+                  }}
+                  onToggleMute={toggleMute}
+                  t={t}
+                />
+              )}
+
+              {/* Fullscreen */}
               <button
                 type="button"
-                className="fp-btn fp-btn-ghost"
-                onClick={onBack}
-                aria-label={t('back')}
-                title={t('back')}
+                className="fp-btn fp-top-btn"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
+                title={`${isFullscreen ? t('exitFullscreen') : t('fullscreen')} (F)`}
               >
-                <BackIcon size={20} />
+                {isFullscreen || pseudoFullscreen ? (
+                  <ExitFullscreenIcon size={22} />
+                ) : (
+                  <FullscreenIcon size={22} />
+                )}
               </button>
-            )}
-            <span className="fp-topbar-text">
-              <span className="fp-topbar-title">{title}</span>
-              {subtitle && <span className="fp-topbar-sub">{subtitle}</span>}
-            </span>
+
+              {/* Settings with text label below */}
+              <button
+                ref={overflowBtn}
+                type="button"
+                className={`fp-settings-btn${menu === 'overflow' ? ' is-open' : ''}`}
+                onClick={() => setMenu(menu === 'overflow' ? null : 'overflow')}
+                aria-label="Settings"
+                title="Settings"
+              >
+                <VerticalDotsIcon size={20} />
+                <span className="fp-settings-label">Settings</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -889,7 +961,7 @@ export default function PlayerShell({
         {ended && endCard}
 
         {/* ── Control bar ── */}
-        {started && !hasError && engine !== 'embed' && (
+        {started && !hasError && (
           <div
             ref={controlsRef}
             className="fp-controls"
@@ -897,8 +969,6 @@ export default function PlayerShell({
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
             onMouseEnter={wake}
-            // Belt and braces alongside the geometric hold above: once the bar is
-            // visible it is interactive, so enter/leave are the cheapest signal.
             onPointerEnter={(event) => {
               if (event.pointerType !== 'touch') holdChrome(true);
             }}
@@ -907,6 +977,7 @@ export default function PlayerShell({
               wake();
             }}
           >
+            {/* Full-width seek bar with left timestamp, chapter dots, right timestamp */}
             {showSeekBar && (
               <SeekBar
                 currentTime={snapshot.currentTime}
@@ -923,205 +994,51 @@ export default function PlayerShell({
               />
             )}
 
-            <div className="fp-bar">
-              <div className="fp-bar-group fp-bar-start">
-                {caps.playback && (
-                  <button
-                    type="button"
-                    className="fp-btn fp-btn-primary"
-                    onClick={togglePlay}
-                    aria-label={primaryLabel}
-                    title={`${primaryLabel} (Space)`}
-                  >
-                    {ended ? <ReplayIcon /> : isPlaying ? <PauseIcon /> : <PlayIcon />}
-                  </button>
-                )}
+            {/* Bottom-Center Transport Controls: [ ↺ 10 ] [ ▶ / || ] [ ↻ 10 ] */}
+            <div className="fp-center-transport">
+              {/* Rewind 10s */}
+              <button
+                type="button"
+                className="fp-transport-skip"
+                onClick={() => seekBy(-SKIP_SECONDS)}
+                aria-label={t('back10')}
+                title={`${t('back10')} (←)`}
+              >
+                <SkipIcon direction="back" size={26} />
+              </button>
 
-                {caps.seek && (
-                  <>
-                    <button
-                      type="button"
-                      className="fp-btn"
-                      onClick={() => seekBy(-SKIP_SECONDS)}
-                      aria-label={t('back10')}
-                      title={`${t('back10')} (←)`}
-                    >
-                      <SkipIcon direction="back" />
-                    </button>
-                    <button
-                      type="button"
-                      className="fp-btn"
-                      onClick={() => seekBy(SKIP_SECONDS)}
-                      aria-label={t('forward10')}
-                      title={`${t('forward10')} (→)`}
-                    >
-                      <SkipIcon direction="forward" />
-                    </button>
-                  </>
-                )}
-
-                {episodeNav && !compact && (
-                  <>
-                    <button
-                      type="button"
-                      className="fp-btn"
-                      onClick={episodeNav.onPrev}
-                      disabled={!episodeNav.hasPrev}
-                      aria-label={t('prevEpisode')}
-                      title={t('prevEpisode')}
-                    >
-                      <PrevIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className="fp-btn"
-                      onClick={episodeNav.onNext}
-                      disabled={!episodeNav.hasNext}
-                      aria-label={t('nextEpisode')}
-                      title={t('nextEpisode')}
-                    >
-                      <NextIcon />
-                    </button>
-                  </>
-                )}
-
-                {caps.volume !== 'none' && (
-                  <VolumeControl
-                    volume={prefs.volume}
-                    muted={prefs.muted}
-                    mode={caps.volume}
-                    onVolume={(value) => {
-                      setVolume(value);
-                      flashHud('volume', Math.round(value * 100));
-                    }}
-                    onToggleMute={toggleMute}
-                    t={t}
-                  />
-                )}
-
-                {/* Time readout: only where time is real, and only when there is
-                    room — on compact it lives under the seek bar instead. */}
-                {showSeekBar && (
-                  <span className="fp-time" aria-hidden="true">
-                    <span className="fp-time-current">{formatTime(scrubTime ?? snapshot.currentTime)}</span>
-                    <span className="fp-time-sep">/</span>
-                    <span className="fp-time-total">{formatTime(snapshot.duration)}</span>
-                  </span>
-                )}
-              </div>
-
-              <div className="fp-bar-group fp-bar-end">
-                {/* Captions quick-toggle: the single most used control after
-                    play, so it stays in the bar at every size. */}
-                {caps.textTracks && (
-                  <button
-                    type="button"
-                    className={`fp-btn${activeTextTrack ? ' is-on' : ''}`}
-                    onClick={toggleSubtitles}
-                    aria-label={t('subtitles')}
-                    aria-pressed={!!activeTextTrack}
-                    title={`${t('subtitles')} (C)`}
-                  >
-                    <CaptionsIcon active={!!activeTextTrack} />
-                  </button>
-                )}
-
-                {/* Audio & subtitles panel. Always available: on the embed engine
-                    it explains where the tracks are instead of listing them. */}
-                <button
-                  ref={tracksBtn}
-                  type="button"
-                  className={`fp-btn${menu === 'tracks' ? ' is-open' : ''}`}
-                  onClick={() => setMenu(menu === 'tracks' ? null : 'tracks')}
-                  aria-label={t('audioAndSubtitles')}
-                  aria-haspopup="dialog"
-                  aria-expanded={menu === 'tracks'}
-                  title={t('audioAndSubtitles')}
-                >
-                  <AudioTrackIcon />
-                </button>
-
-                {caps.rate && !compact && (
-                  <button
-                    ref={speedBtn}
-                    type="button"
-                    className={`fp-btn${menu === 'speed' ? ' is-open' : ''}${prefs.rate !== 1 ? ' is-on' : ''}`}
-                    onClick={() => setMenu(menu === 'speed' ? null : 'speed')}
-                    aria-label={t('speed')}
-                    aria-haspopup="dialog"
-                    aria-expanded={menu === 'speed'}
-                    title={t('speed')}
-                  >
-                    <SpeedIcon />
-                    {prefs.rate !== 1 && <span className="fp-btn-badge">{prefs.rate}×</span>}
-                  </button>
-                )}
-
-                {episodeNav && (
-                  <button
-                    ref={episodesBtn}
-                    type="button"
-                    className={`fp-btn fp-episodes-btn${menu === 'episodes' ? ' is-open' : ''}`}
-                    onClick={() => {
-                      episodeNav.onOpenEpisodes();
-                      setMenu(menu === 'episodes' ? null : 'episodes');
-                    }}
-                    aria-label={t('episodes')}
-                    aria-haspopup="dialog"
-                    aria-expanded={menu === 'episodes'}
-                    title={t('episodes')}
-                  >
-                    <EpisodesIcon />
-                  </button>
-                )}
-
-                {caps.pip && wide && (
-                  <button
-                    type="button"
-                    className="fp-btn"
-                    onClick={requestPip}
-                    aria-label={t('pip')}
-                    title={t('pip')}
-                  >
-                    <PipIcon />
-                  </button>
-                )}
-
-                {/* Overflow: the reflow target for everything the current width
-                    cannot hold. */}
-                <button
-                  ref={overflowBtn}
-                  type="button"
-                  className={`fp-btn${menu === 'overflow' ? ' is-open' : ''}`}
-                  onClick={() => setMenu(menu === 'overflow' ? null : 'overflow')}
-                  aria-label={t('more')}
-                  aria-haspopup="dialog"
-                  aria-expanded={menu === 'overflow'}
-                  title={t('more')}
-                >
-                  <MoreIcon />
-                </button>
-
+              {/* Main Play / Pause */}
+              {caps.playback && (
                 <button
                   type="button"
-                  className="fp-btn"
-                  onClick={toggleFullscreen}
-                  aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
-                  title={`${isFullscreen ? t('exitFullscreen') : t('fullscreen')} (F)`}
+                  className="fp-transport-main"
+                  onClick={togglePlay}
+                  aria-label={primaryLabel}
+                  title={`${primaryLabel} (Space)`}
                 >
-                  {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+                  {ended ? <ReplayIcon size={30} /> : isPlaying ? <PauseIcon size={30} /> : <PlayIcon size={30} />}
                 </button>
-              </div>
+              )}
+
+              {/* Forward 10s */}
+              <button
+                type="button"
+                className="fp-transport-skip"
+                onClick={() => seekBy(SKIP_SECONDS)}
+                aria-label={t('forward10')}
+                title={`${t('forward10')} (→)`}
+              >
+                <SkipIcon direction="forward" size={26} />
+              </button>
             </div>
 
-            {/* Menus are children of the control bar so they inherit its
-                stacking context and stay visible in fullscreen. */}
+            {/* Menus popovers */}
             <Popover
               open={menu === 'tracks'}
               onClose={() => setMenu(null)}
               label={t('audioAndSubtitles')}
               triggerRef={tracksBtn}
-              className="fp-menu-end"
+              className="fp-menu-top"
             >
               <TracksMenu
                 audioTracks={snapshot.audioTracks}
@@ -1145,7 +1062,7 @@ export default function PlayerShell({
               onClose={() => setMenu(null)}
               label={t('speed')}
               triggerRef={speedBtn}
-              className="fp-menu-end"
+              className="fp-menu-top"
             >
               <SpeedMenu rate={prefs.rate} onSelect={setRate} t={t} />
             </Popover>
@@ -1153,9 +1070,9 @@ export default function PlayerShell({
             <Popover
               open={menu === 'overflow'}
               onClose={() => setMenu(null)}
-              label={t('settings')}
+              label="Settings"
               triggerRef={overflowBtn}
-              className="fp-menu-end"
+              className="fp-menu-top"
             >
               <OverflowMenu
                 brightness={prefs.brightness}
@@ -1164,11 +1081,9 @@ export default function PlayerShell({
                 autoplayNext={prefs.autoplayNext}
                 showAutoplayNext={showAutoplayNext}
                 canPip={caps.pip}
-                // Exactly the controls the bar could not keep at this width —
-                // never both inline and in here, so nothing is duplicated.
-                speed={caps.rate && compact ? { rate: prefs.rate, onRate: setRate } : null}
+                speed={caps.rate ? { rate: prefs.rate, onRate: setRate } : null}
                 episodeNav={
-                  episodeNav && compact
+                  episodeNav
                     ? {
                         hasPrev: episodeNav.hasPrev,
                         hasNext: episodeNav.hasNext,
@@ -1177,12 +1092,23 @@ export default function PlayerShell({
                       }
                     : null
                 }
-                onBrightness={setBrightness}
-                onZoom={setZoom}
+                onOpenEpisodes={() => {
+                  setMenu(null);
+                  episodeNav?.onOpenEpisodes();
+                }}
+                onBrightness={(b) => {
+                  setBrightness(b);
+                  flashHud('brightness', Math.round(b * 100));
+                }}
+                onZoom={(z) => {
+                  setZoom(z);
+                  flashHud('zoom', Math.round(z * 100));
+                }}
                 onToggleGestures={toggleGestures}
-                onToggleAutoplayNext={() => updatePrefs({ autoplayNext: !prefs.autoplayNext })}
-                onPip={requestPip}
-                onReload={onReload}
+                onToggleAutoplayNext={() =>
+                  updatePrefs({ autoplayNext: !prefs.autoplayNext })
+                }
+                onRequestPip={requestPip}
                 t={t}
               />
             </Popover>

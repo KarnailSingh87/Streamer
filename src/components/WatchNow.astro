@@ -39,6 +39,10 @@ interface Props {
   markers?: TimeMarker[];
   /** "More like this" tiles for the end card. */
   related?: RelatedTitle[];
+  genres?: string[];
+  rating?: number | null;
+  ratingBadge?: string;
+  contentAdvisory?: string;
 }
 
 const {
@@ -52,6 +56,10 @@ const {
   media = null,
   markers = [],
   related = [],
+  genres = [],
+  rating = null,
+  ratingBadge,
+  contentAdvisory,
 } = Astro.props;
 ---
 
@@ -72,6 +80,10 @@ const {
     media={media}
     markers={markers}
     related={related}
+    genres={genres}
+    rating={rating ?? undefined}
+    ratingBadge={ratingBadge}
+    contentAdvisory={contentAdvisory}
   />
 </section>
 

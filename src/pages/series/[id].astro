@@ -189,6 +189,8 @@ const galleryImages: string[] = [
           seasons={playerSeasons}
           trailerKey={trailerKey}
           related={relatedForPlayer}
+          genres={(series.genres ?? []).map((g) => g.name)}
+          rating={rating}
         />
 
         {/* ── Seasons / Episodes accordion ──

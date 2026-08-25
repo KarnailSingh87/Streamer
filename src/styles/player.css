@@ -651,17 +651,16 @@
 .fp-topbar {
   position: absolute;
   inset: 0 0 auto 0;
-  z-index: 4;
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: max(0.6rem, env(safe-area-inset-top)) 0.85rem 1.75rem;
-  padding-left: max(0.85rem, env(safe-area-inset-left));
-  padding-right: max(0.85rem, env(safe-area-inset-right));
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0.75), transparent);
+  justify-content: space-between;
+  gap: 1rem;
+  padding: max(0.85rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) 2.25rem max(1.25rem, env(safe-area-inset-left));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
   opacity: 0;
   transform: translateY(-0.5rem);
-  transition: opacity 200ms var(--fp-ease), transform 200ms var(--fp-ease);
+  transition: opacity 220ms var(--fp-ease), transform 220ms var(--fp-ease);
   pointer-events: none;
 }
 
@@ -669,6 +668,132 @@
   opacity: 1;
   transform: none;
   pointer-events: auto;
+}
+
+.fp-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.fp-top-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.fp-top-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.08);
+}
+
+.fp-rating-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+}
+
+.fp-rating-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.fp-rating-advisory {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 400;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55vw;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+}
+
+@media (max-width: 48rem) {
+  .fp-rating-advisory {
+    display: none;
+  }
+}
+
+.fp-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.fp-top-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 50%;
+  color: #ffffff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.fp-top-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.06);
+}
+
+.fp-top-btn.is-open {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.fp-settings-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.4rem;
+  color: #ffffff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.fp-settings-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.fp-settings-btn.is-open {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.fp-settings-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .fp-topbar-text {
@@ -999,14 +1124,48 @@
 
 /* ──────────────────────────────────────────────────────────── Seek bar ─── */
 
+.fp-seek-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem 0.25rem;
+  box-sizing: border-box;
+}
+
+.fp-seek-time {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  min-width: 4rem;
+  user-select: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.fp-seek-time-duration {
+  text-align: right;
+}
+
+.fp-seek-track-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .fp-seek {
   position: relative;
   padding-block: 0.25rem;
+  width: 100%;
 }
 
 .fp-seek-track {
   position: relative;
-  height: 1.15rem; /* hit area; the painted rail is thinner */
+  width: 100%;
+  height: 1.25rem; /* hit area; the painted rail is thinner */
   display: flex;
   align-items: center;
   cursor: pointer;
@@ -1035,7 +1194,7 @@
 }
 
 .fp-seek-rail {
-  background: rgb(255 255 255 / 0.26);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .fp-seek-buffer,
@@ -1045,43 +1204,57 @@
 }
 
 .fp-seek-buffer {
-  background: rgb(255 255 255 / 0.42);
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .fp-seek-played {
-  background: linear-gradient(90deg, var(--fp-accent-from), var(--fp-accent-to));
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+.fp-seek-tick-dot {
+  position: absolute;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .fp-seek-handle {
   position: absolute;
   top: 50%;
-  width: 0.85rem;
-  height: 0.85rem;
-  margin-left: -0.425rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-left: -0.475rem;
   border-radius: 999px;
-  background: #fff;
-  transform: translateY(-50%) scale(0);
+  background: #ffffff;
+  transform: translateY(-50%) scale(1);
   transition: transform 140ms var(--fp-ease);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.6);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.7), 0 0 6px rgba(255, 255, 255, 0.6);
+  z-index: 3;
 }
 
-/* The rail thickens and the handle appears on hover/focus/drag — the same
-   affordance Netflix and YouTube use to keep the resting state slim. */
+/* The rail thickens on hover */
 .fp-seek-track:hover .fp-seek-rail,
 .fp-seek-track:hover .fp-seek-buffer,
 .fp-seek-track:hover .fp-seek-played,
 .fp-seek-track:focus-visible .fp-seek-rail,
 .fp-seek-track:focus-visible .fp-seek-buffer,
 .fp-seek-track:focus-visible .fp-seek-played {
-  height: 0.4rem;
+  height: 0.38rem;
 }
 
 .fp-seek-track:hover .fp-seek-handle,
 .fp-seek-track:focus-visible .fp-seek-handle {
-  transform: translateY(-50%) scale(1);
+  transform: translateY(-50%) scale(1.15);
 }
 
-/* Touch: the handle is always visible, because there is no hover to reveal it. */
+/* Touch: the handle is always visible */
 @media (pointer: coarse) {
   .fp-seek-handle {
     transform: translateY(-50%) scale(1);
@@ -1137,6 +1310,67 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ────────────────────────────────── Centered Bottom Playback Cluster ─── */
+
+.fp-center-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  width: 100%;
+  padding: 0.65rem 0 0.5rem;
+}
+
+.fp-transport-skip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  color: #ffffff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background 160ms ease, opacity 160ms ease;
+}
+
+.fp-transport-skip:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(1.12);
+}
+
+.fp-transport-skip:active {
+  transform: scale(0.94);
+}
+
+.fp-transport-main {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background 160ms ease, box-shadow 160ms ease;
+}
+
+.fp-transport-main:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(255, 255, 255, 0.25);
+}
+
+.fp-transport-main:active {
+  transform: scale(0.94);
+}
+
 /* ────────────────────────────────────────────────────────────── Menus ─── */
 
 .fp-menu {
@@ -1156,6 +1390,30 @@
   backdrop-filter: blur(12px);
   box-shadow: 0 18px 48px rgb(0 0 0 / 0.55);
   animation: fp-menu-in 160ms var(--fp-ease);
+}
+
+.fp-menu.fp-menu-top {
+  top: 4.25rem;
+  bottom: auto;
+  right: 1.25rem;
+  border-radius: 0.75rem;
+  background: rgba(14, 14, 18, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  animation: fp-menu-slide-down 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fp-menu-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fp-menu-wide {

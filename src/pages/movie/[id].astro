@@ -160,6 +160,8 @@ const galleryImages: string[] = [
           posterUrl={posterUrl}
           trailerKey={trailerKey}
           related={relatedForPlayer}
+          genres={(movie.genres ?? []).map((g) => g.name)}
+          rating={rating}
         />
 
         {/* ── Cast — responsive fan carousel ── */}

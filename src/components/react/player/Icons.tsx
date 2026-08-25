@@ -133,6 +133,27 @@ export function AudioTrackIcon({ size = 22, className }: IconProps) {
   );
 }
 
+/** Subtitles / Dialogue message bubble icon as seen in OTT player */
+export function DialogueIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size, className)} {...stroke}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M8 9h8M8 13h5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Vertical three dots for OTT settings menu */
+export function VerticalDotsIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size, className)} fill="currentColor">
+      <circle cx="12" cy="5" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="12" cy="19" r="1.8" />
+    </svg>
+  );
+}
+
 export function SpeedIcon({ size = 22, className }: IconProps) {
   return (
     <svg {...base(size, className)} {...stroke}>
