@@ -608,6 +608,50 @@ export default function PlayerShell({
     [revealScreenCtl]
   );
 
+  /**
+   * Transparent scroll bridge for third-party embeds (engine === 'embed').
+   * Cross-origin iframes swallow wheel and scroll gestures, trapping the viewer.
+   * This bridge captures wheel events over the video body and relays them to window.scrollBy,
+   * while keeping the bottom 72px controls strip directly clickable.
+   */
+  const [bridgeInteractive, setBridgeInteractive] = useState(true);
+  const bridgeTimer = useRef<number | undefined>(undefined);
+
+  const handleEmbedWheel = useCallback((e: React.WheelEvent) => {
+    let dy = e.deltaY;
+    let dx = e.deltaX;
+
+    if (e.deltaMode === 1) {
+      // Standard notched wheel: 16px per line
+      dy *= 16;
+      dx *= 16;
+    } else if (e.deltaMode === 2) {
+      // Page mode
+      dy *= window.innerHeight;
+      dx *= window.innerWidth;
+    }
+
+    // Scroll with instant behavior to match native 1:1 tracking speed exactly
+    try {
+      window.scrollBy({
+        top: dy,
+        left: dx,
+        behavior: 'instant' as ScrollBehavior,
+      });
+    } catch {
+      window.scrollBy(dx, dy);
+    }
+  }, []);
+
+  const handleBridgeClick = useCallback(() => {
+    // Temporarily yield pointer events so direct video clicks pass through
+    setBridgeInteractive(false);
+    window.clearTimeout(bridgeTimer.current);
+    bridgeTimer.current = window.setTimeout(() => {
+      setBridgeInteractive(true);
+    }, 2000);
+  }, []);
+
   return (
     <div className="fp-root">
       <div
@@ -630,6 +674,7 @@ export default function PlayerShell({
         onMouseLeave={() => {
           holdChrome(false);
           wake();
+          setBridgeInteractive(true);
         }}
         onPointerDown={(event) => {
           wake();
@@ -641,6 +686,17 @@ export default function PlayerShell({
       >
         {/* Engine surface. The adapter appends <video> / <iframe> here. */}
         <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
+
+        {/* Transparent scroll bridge for third-party embeds: lets mouse wheel / trackpad
+            scroll the page freely when hovering over the video, while leaving bottom controls open. */}
+        {started && engine === 'embed' && !isFullscreen && !pseudoFullscreen && (
+          <div
+            className={`fp-embed-scroll-bridge${bridgeInteractive ? '' : ' is-yielding'}`}
+            onWheel={handleEmbedWheel}
+            onClick={handleBridgeClick}
+            aria-hidden="true"
+          />
+        )}
 
         {/* Pre-play splash. The play control is a real button, so Enter/Space
             start playback; the icon carries the whole meaning, so there is no
