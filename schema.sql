@@ -34,10 +34,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   avatar_color  TEXT NOT NULL DEFAULT '#4285F4',
   is_kids       INTEGER NOT NULL DEFAULT 0,     -- 0 = false, 1 = true
   is_default    INTEGER NOT NULL DEFAULT 0,
-  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  CONSTRAINT profiles_max_per_user CHECK (
-    (SELECT COUNT(*) FROM profiles p2 WHERE p2.user_id = profiles.user_id) <= 5
-  )
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS profiles_user_id ON profiles(user_id);
