@@ -130,10 +130,10 @@ export const KNOWN_SERVERS: ReadonlyArray<{
   label: string;
   confidence: 'title' | 'live';
 }> = [
-  { id: 'vidsrcin', name: 'VidSrc IN (Hindi)', label: 'Server 1', confidence: 'title' },
-  { id: 'vidlink', name: 'VidLink', label: 'Server 2', confidence: 'title' },
-  { id: 'vidfast', name: 'VidFast', label: 'Server 3', confidence: 'live' },
-  { id: 'videasy', name: 'Videasy', label: 'Server 4', confidence: 'live' },
+  { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 1', confidence: 'title' },
+  { id: 'vidfast', name: 'VidFast', label: 'Server 2', confidence: 'live' },
+  { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 3', confidence: 'live' },
+  { id: 'vidsrcin', name: 'VidSrc IN (Hindi)', label: 'Server 4', confidence: 'title' },
   { id: 'nexstream', name: 'NexStream', label: 'Server 5', confidence: 'title' },
 ];
 

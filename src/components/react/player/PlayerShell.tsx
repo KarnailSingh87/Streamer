@@ -57,6 +57,7 @@ import TracksMenu from './TracksMenu';
 import SpeedMenu from './SpeedMenu';
 import OverflowMenu from './OverflowMenu';
 import SubtitleLayer from './SubtitleLayer';
+import type { ServerOption } from './SourceBar';
 import {
   AudioTrackIcon,
   BackIcon,
@@ -154,6 +155,10 @@ export interface PlayerShellProps {
   ratingBadge?: string;
   /** Content warning / advisory text, e.g. "frightening scenes, sexual content, violence, tobacco depictions, alcohol use" */
   contentAdvisory?: string;
+  /** Available servers for fast in-player switching */
+  servers?: ServerOption[];
+  activeServer?: string | null;
+  onServer?: (id: string) => void;
 }
 
 /** Read a rem-valued CSS custom property from an element, in pixels. */
@@ -189,6 +194,9 @@ export default function PlayerShell({
   showAutoplayNext,
   ratingBadge,
   contentAdvisory,
+  servers,
+  activeServer,
+  onServer,
 }: PlayerShellProps) {
   const {
     hostRef,
@@ -883,6 +891,38 @@ export default function PlayerShell({
             </div>
 
             <div className="fp-topbar-right">
+              {/* In-player Server Switcher: instant 1-tap failover / switch */}
+              {engine === 'embed' && servers && servers.length > 0 && (
+                <button
+                  type="button"
+                  className="fp-btn fp-top-btn"
+                  onClick={() => {
+                    const currentIndex = servers.findIndex((s) => s.id === activeServer);
+                    const nextServer = servers[(currentIndex + 1) % servers.length];
+                    if (nextServer && onServer) onServer(nextServer.id);
+                  }}
+                  title={`Current: ${servers.find((s) => s.id === activeServer)?.name || activeServer || 'Server 1'}. Click to switch to next server!`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: '999px',
+                    background: 'rgba(229, 9, 20, 0.25)',
+                    border: '1px solid rgba(229, 9, 20, 0.7)',
+                    color: '#fff',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.02em',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                  }}
+                >
+                  <span style={{ color: '#ff2a38' }}>⚡</span>
+                  <span>{servers.find((s) => s.id === activeServer)?.name?.replace(/\s*\(.*\)/, '') || 'Server 1'}</span>
+                </button>
+              )}
+
               {/* Dialogue / Subtitles / Audio */}
               <button
                 ref={tracksBtn}

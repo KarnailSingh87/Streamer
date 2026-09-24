@@ -154,12 +154,12 @@ const galleryImages: string[] = [
          start-up cost does not depend on whether the title is a film or a show.
          vidsrc.in gets a full preconnect (it is the default auto pick) so its
          TLS handshake is already warm when the iframe loads. */}
-    <link rel="preconnect" href="https://vidsrc.in" crossorigin />
+    <link rel="preconnect" href="https://vidlink.pro" crossorigin />
+    <link rel="dns-prefetch" href="https://vidlink.pro" />
+    <link rel="dns-prefetch" href="https://vidfast.pro" />
+    <link rel="dns-prefetch" href="https://player.videasy.net" />
     <link rel="dns-prefetch" href="https://vidsrc.in" />
     <link rel="dns-prefetch" href="https://www.vidking.net" />
-    <link rel="dns-prefetch" href="https://vidlink.pro" />
-    <link rel="dns-prefetch" href="https://player.videasy.net" />
-    <link rel="dns-prefetch" href="https://vidfast.pro" />
     <link rel="dns-prefetch" href="https://api.codespecters.com" />
   </Fragment>
   {error || !series ? (

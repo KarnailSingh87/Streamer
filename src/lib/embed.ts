@@ -69,10 +69,10 @@ export const EMBED_SERVER_META: ReadonlyArray<{
   label: string;
   confidence: ProbeConfidence;
 }> = [
-  { id: 'vidsrcin', name: 'VidSrc IN (Hindi)', label: 'Server 1', confidence: 'title' },
-  { id: 'vidlink', name: 'VidLink', label: 'Server 2', confidence: 'title' },
-  { id: 'vidfast', name: 'VidFast', label: 'Server 3', confidence: 'live' },
-  { id: 'videasy', name: 'Videasy', label: 'Server 4', confidence: 'live' },
+  { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 1', confidence: 'title' },
+  { id: 'vidfast', name: 'VidFast', label: 'Server 2', confidence: 'live' },
+  { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 3', confidence: 'live' },
+  { id: 'vidsrcin', name: 'VidSrc IN (Hindi)', label: 'Server 4', confidence: 'title' },
   { id: 'nexstream', name: 'NexStream', label: 'Server 5', confidence: 'title' },
 ];
 
@@ -329,6 +329,21 @@ export async function probeServerTimed(
       const res = await fetchWithTimeout(url);
       latencyMs = Date.now() - startedAt;
       if (res.ok) resolved = url;
+    } else if (server === 'vidsrcin') {
+      // Check if vidsrc.in actually has this title or returns an error page (e.g. 404)
+      const url = providerUrl(server, target);
+      const res = await fetchWithTimeout(url);
+      latencyMs = Date.now() - startedAt;
+      if (res.ok) {
+        try {
+          const text = await res.text();
+          if (!text.includes('SOMETHING WENT WRONG') && !text.includes('(404)')) {
+            resolved = url;
+          }
+        } catch {
+          resolved = url;
+        }
+      }
     } else {
       // 'live' confidence: these players respond identically for real and bogus
       // ids, so all we can honestly verify is that the provider is up and

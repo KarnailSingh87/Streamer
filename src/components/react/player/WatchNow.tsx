@@ -769,6 +769,9 @@ export default function WatchNow({
         showAutoplayNext={isSeries}
         ratingBadge={derivedBadge}
         contentAdvisory={derivedAdvisory}
+        servers={serverOptions}
+        activeServer={server}
+        onServer={switchServer}
         episodeNav={
           isSeries
             ? {

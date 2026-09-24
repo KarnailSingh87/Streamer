@@ -92,10 +92,10 @@ export function qualityFor(id: string): ServerQuality {
 // Unknown ids fall to PREFERENCE_MAX so a provider we have not vetted never
 // outranks a vetted one just by being unlisted.
 export const PROVIDER_PREFERENCE: Readonly<Record<string, number>> = {
-  vidsrcin: 0,
-  vidlink: 1,
-  vidfast: 2,
-  videasy: 3,
+  vidlink: 0,
+  vidfast: 1,
+  videasy: 2,
+  vidsrcin: 3,
   nexstream: 4,
 };
 
