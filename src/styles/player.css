@@ -112,15 +112,9 @@
   object-fit: contain;
 }
 
-/* ─── Transparent scroll bridge for third-party embeds ───
-   Captures mouse wheel and trackpad scroll over the iframe and relays to the page,
-   while keeping the bottom control bar (bottom 72px) directly clickable. */
 .fp-embed-scroll-bridge {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 72px;
+  inset: 0;
   z-index: 10;
   pointer-events: auto;
   background: transparent;

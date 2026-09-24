@@ -622,34 +622,33 @@ export default function PlayerShell({
     let dx = e.deltaX;
 
     if (e.deltaMode === 1) {
-      // Standard notched wheel: 16px per line
-      dy *= 16;
-      dx *= 16;
+      dy *= 18;
+      dx *= 18;
     } else if (e.deltaMode === 2) {
-      // Page mode
       dy *= window.innerHeight;
       dx *= window.innerWidth;
     }
 
-    // Scroll with instant behavior to match native 1:1 tracking speed exactly
-    try {
-      window.scrollBy({
-        top: dy,
-        left: dx,
-        behavior: 'instant' as ScrollBehavior,
-      });
-    } catch {
+    // Direct scroll on the document scrollingElement handles both up and down perfectly
+    const scroller = document.scrollingElement || document.documentElement || document.body;
+    if (scroller) {
+      scroller.scrollTop += dy;
+      if (dx) scroller.scrollLeft += dx;
+    } else {
       window.scrollBy(dx, dy);
     }
+
+    // Keep bridge armed so repeated up/down scrolls never get locked out
+    setBridgeInteractive(true);
   }, []);
 
   const handleBridgeClick = useCallback(() => {
-    // Temporarily yield pointer events so direct video clicks pass through
+    // Temporarily yield pointer events so direct video clicks pass through to player
     setBridgeInteractive(false);
     window.clearTimeout(bridgeTimer.current);
     bridgeTimer.current = window.setTimeout(() => {
       setBridgeInteractive(true);
-    }, 2000);
+    }, 1500);
   }, []);
 
   return (
