@@ -154,8 +154,7 @@ export class EmbedAdapter implements PlayerAdapter {
     frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
     frame.allowFullscreen = true;
     frame.referrerPolicy = 'no-referrer';
-    // Strictly block ad popups, new tabs, and page redirects:
-    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation');
+
     frame.addEventListener('load', () => {
       window.clearTimeout(this.loadTimer);
       // A loaded provider frame is 'playing' from the shell's point of view: it
