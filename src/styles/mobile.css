@@ -147,6 +147,21 @@
     justify-content: space-around;
   }
 
+  /* Automatically hide the floating bottom tab bar in fullscreen or landscape playback */
+  @media (max-height: 500px) and (orientation: landscape) {
+    .btb-root {
+      display: none !important;
+    }
+  }
+
+  html:has(.is-fullscreen) .btb-root,
+  html:has(.is-pseudo-fullscreen) .btb-root,
+  body:has(.is-fullscreen) .btb-root,
+  body:has(.is-pseudo-fullscreen) .btb-root,
+  :fullscreen ~ .btb-root {
+    display: none !important;
+  }
+
   .btb-tab {
     display: flex;
     flex-direction: column;

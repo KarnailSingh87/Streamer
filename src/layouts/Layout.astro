@@ -3,7 +3,6 @@
 import { ClientRouter } from 'astro:transitions';
 import Nav from '../components/Nav.astro';
 import CinematicFooter from '../components/react/CinematicFooter';
-import HumanGate from '../components/HumanGate.astro';
 import BackToTop from '../components/react/BackToTop';
 import BottomTabBar from '../components/react/BottomTabBar';
 import CookieConsent from '../components/react/CookieConsent';
@@ -41,7 +40,7 @@ const {
   noFooter = false,
   noNav = false,
   noIndex = false,
-  noExtras = false,
+  noExtras = true,
   galleryImages = [],
 } = Astro.props;
 
@@ -149,22 +148,9 @@ const isHome = Astro.url.pathname === '/';
       })();
     </script>
 
-    <!-- ── Human-gate anti-flash: hide the gate before paint if already verified this session ── -->
-    <script is:inline>
-      (function () {
-        try {
-          if (sessionStorage.getItem('nx_human_ok') === '1') {
-            document.documentElement.classList.add('nx-verified');
-          }
-        } catch (e) {}
-      })();
-    </script>
   </head>
 
   <body>
-    <!-- ── "Are you human?" verification gate — home page only, on refresh ── -->
-    {isHome && <HumanGate />}
-
     <!-- ── Scroll progress bar (pure DOM, no React re-renders) ── -->
     <div id="scroll-progress" class="scroll-progress" aria-hidden="true"></div>
 
@@ -260,15 +246,7 @@ const isHome = Astro.url.pathname === '/';
       // If a navigation is cancelled or fails, don't leave the bar stuck.
       window.addEventListener('pagehide', endNavProgress);
 
-      // ── Human-gate: only a genuine document load / refresh may show the gate.
-      //    On client-side (view-transition) navigation we remove any gate markup
-      //    so it never appears off the home page and never blocks navigation.
-      //    (The gate is server-rendered for "/" only; its inline script does not
-      //    re-run on view transitions, so a real refresh is the only trigger.)
-      document.addEventListener('astro:after-swap', () => {
-        document.documentElement.classList.remove('hg-lock');
-        document.getElementById('human-gate')?.remove();
-      });
+
 
       // ── Scroll progress bar ──────────────────────────────────
       const progressBar = document.getElementById('scroll-progress');
