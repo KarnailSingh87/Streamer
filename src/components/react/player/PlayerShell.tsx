@@ -900,11 +900,8 @@ export default function PlayerShell({
           </div>
         )}
 
-        {/* Embed providers keep their own playback chrome fully interactive.
-            This pointer-transparent wrapper contributes only one centered
-            fullscreen/minimize button; server selection remains below stage. */}
-        {/* Top bar: Back/Close + Rating Badge + Advisory on Left; Subtitles/Audio + Volume + Fullscreen + Settings on Right */}
-        {started && (
+        {/* Top bar: only rendered for html5/youtube where we own controls; embed provider has native working controls in the bottom */}
+        {started && engine !== 'embed' && (
           <div
             className="fp-topbar"
             onPointerEnter={(event) => {
