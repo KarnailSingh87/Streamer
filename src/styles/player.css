@@ -112,21 +112,7 @@
   object-fit: contain;
 }
 
-.fp-embed-scroll-bridge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 68px;
-  z-index: 5;
-  pointer-events: auto;
-  background: transparent;
-  cursor: default;
-}
 
-.fp-embed-scroll-bridge.is-yielding {
-  pointer-events: none;
-}
 
 /* Fullscreen: fill the screen, drop the rounded corners, respect the notch. */
 .fp-stage.is-fullscreen {
