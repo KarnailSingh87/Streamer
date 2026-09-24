@@ -472,7 +472,7 @@ export default function PlayerShell({
   const isBuffering = engine !== 'embed' && (snapshot.status === 'buffering' || (started && snapshot.status === 'loading'));
   const hasError = snapshot.status === 'error' && !!snapshot.error;
   const ended = snapshot.status === 'ended';
-  const showSeekBar = caps.time && snapshot.duration > 0;
+  const showSeekBar = caps.time && snapshot.duration > 0 && engine !== 'embed';
   const activeTextTrack = snapshot.textTracks.find((s) => s.active) ?? null;
 
   const errorMessage = useMemo(() => {
@@ -1035,42 +1035,44 @@ export default function PlayerShell({
             )}
 
             {/* Bottom-Center Transport Controls: [ ↺ 10 ] [ ▶ / || ] [ ↻ 10 ] */}
-            <div className="fp-center-transport">
-              {/* Rewind 10s */}
-              <button
-                type="button"
-                className="fp-transport-skip"
-                onClick={() => seekBy(-SKIP_SECONDS)}
-                aria-label={t('back10')}
-                title={`${t('back10')} (←)`}
-              >
-                <SkipIcon direction="back" size={26} />
-              </button>
-
-              {/* Main Play / Pause */}
-              {caps.playback && (
+            {engine !== 'embed' && (
+              <div className="fp-center-transport">
+                {/* Rewind 10s */}
                 <button
                   type="button"
-                  className="fp-transport-main"
-                  onClick={togglePlay}
-                  aria-label={primaryLabel}
-                  title={`${primaryLabel} (Space)`}
+                  className="fp-transport-skip"
+                  onClick={() => seekBy(-SKIP_SECONDS)}
+                  aria-label={t('back10')}
+                  title={`${t('back10')} (←)`}
                 >
-                  {ended ? <ReplayIcon size={30} /> : isPlaying ? <PauseIcon size={30} /> : <PlayIcon size={30} />}
+                  <SkipIcon direction="back" size={26} />
                 </button>
-              )}
 
-              {/* Forward 10s */}
-              <button
-                type="button"
-                className="fp-transport-skip"
-                onClick={() => seekBy(SKIP_SECONDS)}
-                aria-label={t('forward10')}
-                title={`${t('forward10')} (→)`}
-              >
-                <SkipIcon direction="forward" size={26} />
-              </button>
-            </div>
+                {/* Main Play / Pause */}
+                {caps.playback && (
+                  <button
+                    type="button"
+                    className="fp-transport-main"
+                    onClick={togglePlay}
+                    aria-label={primaryLabel}
+                    title={`${primaryLabel} (Space)`}
+                  >
+                    {ended ? <ReplayIcon size={30} /> : isPlaying ? <PauseIcon size={30} /> : <PlayIcon size={30} />}
+                  </button>
+                )}
+
+                {/* Forward 10s */}
+                <button
+                  type="button"
+                  className="fp-transport-skip"
+                  onClick={() => seekBy(SKIP_SECONDS)}
+                  aria-label={t('forward10')}
+                  title={`${t('forward10')} (→)`}
+                >
+                  <SkipIcon direction="forward" size={26} />
+                </button>
+              </div>
+            )}
 
             {/* Menus popovers */}
             <Popover

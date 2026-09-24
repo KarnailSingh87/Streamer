@@ -871,13 +871,13 @@
 .fp-stage.is-controls-visible .fp-controls {
   opacity: 1;
   transform: none;
-  /* The scrim stays transparent to pointers even when visible: its 2.5rem
-     gradient padding covers a third of a phone-sized stage, and letting empty
-     gradient swallow taps would leave the double-tap zones with almost no
-     surface. The real controls opt back in immediately below, and they sit above
-     the zones (z-index 8 vs 2), so a press on the seek bar, a button or an open
-     menu is never read as a tap on the video. */
   pointer-events: none;
+}
+
+.fp-stage.is-engine-embed .fp-controls {
+  background: transparent;
+  pointer-events: none;
+  padding: 0;
 }
 
 /* Seek bar, control row and menus: interactive. Empty scrim: not. */
