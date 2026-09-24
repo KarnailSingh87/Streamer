@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: streamer
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build:render
+    startCommand: npm run db:init && npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: DEPLOY_TARGET
+        value: node
+      - key: HOST
+        value: 0.0.0.0
+      - key: TMDB_API_KEY
+        sync: false
+      - key: EMBED_API_KEY
+        sync: false
+      - key: PUBLIC_SITE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: NexS_api
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

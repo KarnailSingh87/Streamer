@@ -37,9 +37,9 @@ declare const __BUILD_ID__: string;
 declare namespace App {
   interface Locals extends Partial<CFRuntime> {
     /** @deprecated Prefer cfContext plus astro:env; retained for existing D1 routes. */
-    runtime: {
+    runtime?: {
       env: Env;
-      ctx: ExecutionContext;
+      ctx?: ExecutionContext;
     };
     /**
      * Cloudflare execution context. Only present on Cloudflare deployments.

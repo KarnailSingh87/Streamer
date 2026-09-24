@@ -6,14 +6,20 @@ import tailwindcss from '@tailwindcss/vite';
 // https://astro.build/config
 
 // ── Platform target ──────────────────────────────────────────────────────────
-// Set DEPLOY_TARGET=vercel to build for Vercel. Default is Cloudflare.
-const target = process.env.DEPLOY_TARGET ?? 'cloudflare';
+// DEPLOY_TARGET: 'node' (Render / Node), 'vercel', or 'cloudflare' (default).
+const target = process.env.DEPLOY_TARGET ?? (process.env.RENDER ? 'node' : 'cloudflare');
 const isVercel = target === 'vercel';
+const isNode = target === 'node' || target === 'render';
 
-// Dynamic adapter import: Cloudflare or Vercel.
-const adapter = isVercel
-  ? (await import('@astrojs/vercel')).default()
-  : (await import('@astrojs/cloudflare')).default();
+// Dynamic adapter import: Node (Render), Vercel, or Cloudflare.
+let adapter;
+if (isNode) {
+  adapter = (await import('@astrojs/node')).default({ mode: 'standalone' });
+} else if (isVercel) {
+  adapter = (await import('@astrojs/vercel')).default();
+} else {
+  adapter = (await import('@astrojs/cloudflare')).default();
+}
 
 // Set NO_HMR=1 (see the `dev:nohmr` npm script) to run the dev server with
 // hot-reload completely disabled. Nothing will auto-refresh the page — handy
@@ -22,7 +28,7 @@ const adapter = isVercel
 const noHmr = process.env.NO_HMR === '1';
 
 export default defineConfig({
-  site: 'https://streamer.duckdns.org',
+  site: process.env.PUBLIC_SITE_URL || 'https://streamer.duckdns.org',
   output: 'server',
   adapter,
   // Runtime secrets. On Cloudflare, import.meta.env does NOT contain secrets —
@@ -36,7 +42,8 @@ export default defineConfig({
       GOOGLE_CLIENT_SECRET: envField.string({ context: 'server', access: 'secret', optional: true }),
       GOOGLE_REDIRECT_URI: envField.string({ context: 'server', access: 'secret', optional: true }),
       EMBED_API_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
-      // Turso (Vercel only) — libSQL connection details.
+      // Database connection details (Turso / libSQL / local SQLite)
+      DB_PATH: envField.string({ context: 'server', access: 'secret', optional: true }),
       TURSO_DATABASE_URL: envField.string({ context: 'server', access: 'secret', optional: true }),
       TURSO_AUTH_TOKEN: envField.string({ context: 'server', access: 'secret', optional: true }),
       // Platform target, exposed to server code for runtime branching.
@@ -70,6 +77,7 @@ export default defineConfig({
         process.env.CF_PAGES_COMMIT_SHA ??
           process.env.WORKERS_CI_COMMIT_SHA ??
           process.env.VERCEL_GIT_COMMIT_SHA ??
+          process.env.RENDER_GIT_COMMIT ??
           Date.now().toString(36)
       ),
       // Expose the deploy target to server code for conditional imports.

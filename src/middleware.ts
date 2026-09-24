@@ -27,7 +27,7 @@ function cacheKeyFor(url: URL, request: Request): Request {
 
 /** Check if we're running on Cloudflare (has edge cache + cfContext). */
 function isCloudflare(): boolean {
-  return typeof caches !== 'undefined' && import.meta.env.DEPLOY_TARGET !== 'vercel';
+  return typeof caches !== 'undefined' && import.meta.env.DEPLOY_TARGET === 'cloudflare';
 }
 
 export const onRequest = defineMiddleware(async ({ request, url, locals }, next) => {

@@ -153,7 +153,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     let reasons = new Map<number, string>();
     let source: 'nexos' | 'curated' = 'curated';
 
-    const nexosKey = isVercel ? process.env.NexS_api : locals.runtime?.env?.NexS_api;
+    const nexosKey = process.env.NexS_api || (locals as any).runtime?.env?.NexS_api;
     if (nexosKey) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 12_000);
@@ -174,7 +174,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
             'User-Agent': 'Streamer/1.0 (+https://streamer.duckdns.org)',
           },
           body: JSON.stringify({
-            model: isVercel ? process.env.NEXS_MODEL || 'GPT 4.1 mini' : locals.runtime?.env?.NEXS_MODEL || 'GPT 4.1 mini',
+            model: process.env.NEXS_MODEL || (locals as any).runtime?.env?.NEXS_MODEL || 'GPT 4.1 mini',
             store: false,
             temperature: 0.35,
             max_completion_tokens: 700,

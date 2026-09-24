@@ -11,24 +11,26 @@
  */
 
 // ── Detect platform at build time ──────────────────────────────────────────
-const IS_CLOUDFLARE = import.meta.env.DEPLOY_TARGET !== 'vercel';
+const IS_CLOUDFLARE = import.meta.env.DEPLOY_TARGET === 'cloudflare';
 
-// ── Turso/libSQL singleton (Vercel only, lazy-initialised) ─────────────────
-let _tursoClient: any = null;
+// ── Turso / libSQL / SQLite singleton (Node / Render / Vercel) ─────────────
+let _client: any = null;
 
-async function getTursoClient() {
-  if (_tursoClient) return _tursoClient;
+async function getDatabaseClient() {
+  if (_client) return _client;
 
   const { createClient } = await import('@libsql/client');
-  const url = import.meta.env.TURSO_DATABASE_URL ?? process.env.TURSO_DATABASE_URL;
+  let url = import.meta.env.TURSO_DATABASE_URL ?? process.env.TURSO_DATABASE_URL;
   const authToken = import.meta.env.TURSO_AUTH_TOKEN ?? process.env.TURSO_AUTH_TOKEN;
 
   if (!url) {
-    throw new Error('TURSO_DATABASE_URL is not set. Required for Vercel deployment.');
+    const rawPath = process.env.DB_PATH || 'streamer.db';
+    const filePath = rawPath.startsWith('file:') ? rawPath : `file:${rawPath}`;
+    url = filePath;
   }
 
-  _tursoClient = createClient({ url, authToken });
-  return _tursoClient;
+  _client = createClient({ url, authToken });
+  return _client;
 }
 
 // ── D1-compatible wrapper around libSQL ────────────────────────────────────
@@ -137,26 +139,26 @@ function createTursoD1Wrapper(client: any): D1Like {
  * Get the database driver from the request locals.
  *
  * - On Cloudflare: returns `locals.runtime.env.DB` (native D1, zero overhead).
- * - On Vercel: returns a D1-compatible wrapper around Turso/libSQL.
+ * - On Render / Node / Vercel: returns a D1-compatible wrapper around libSQL / SQLite.
  */
 export async function getDB(locals: any): Promise<D1Like> {
-  if (IS_CLOUDFLARE) {
+  if (IS_CLOUDFLARE && locals?.runtime?.env?.DB) {
     // Cloudflare: direct D1 binding
     return locals.runtime.env.DB;
   }
 
-  // Vercel: Turso wrapper
-  const client = await getTursoClient();
+  // Node (Render) or Vercel: libSQL wrapper
+  const client = await getDatabaseClient();
   return createTursoD1Wrapper(client);
 }
 
 /**
  * Synchronous version for Cloudflare-only paths where the D1 binding is
- * guaranteed. Falls back to throwing on Vercel (use getDB instead).
+ * guaranteed. Falls back to throwing on Node/Vercel (use getDB instead).
  */
 export function getDBSync(locals: any): D1Like {
-  if (!IS_CLOUDFLARE) {
-    throw new Error('getDBSync() is only available on Cloudflare. Use getDB() on Vercel.');
+  if (!IS_CLOUDFLARE || !locals?.runtime?.env?.DB) {
+    throw new Error('getDBSync() is only available on Cloudflare. Use getDB() on Render / Node / Vercel.');
   }
   return locals.runtime.env.DB;
 }
