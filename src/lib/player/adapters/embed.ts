@@ -142,7 +142,7 @@ export class EmbedAdapter implements PlayerAdapter {
 
   caps: PlayerCapabilities = {
     ...NO_CAPS,
-    // Everything else is false and stays false — see the header comment.
+    playback: true,
     volume: 'relay',
   };
 
@@ -272,9 +272,35 @@ export class EmbedAdapter implements PlayerAdapter {
     }
   }
 
-  /** Nothing to do: the provider autoplays and we cannot command it. */
-  play(): void {}
-  pause(): void {}
+  private sendPlaybackCommand(play: boolean): void {
+    const win = this.frame?.contentWindow;
+    if (!win) return;
+    const messages = [
+      { type: 'PLAYER_COMMAND', command: play ? 'play' : 'pause' },
+      { action: play ? 'play' : 'pause' },
+      { event: 'command', func: play ? 'play' : 'pause', args: [] },
+      { context: 'player.js', version: '0.0.11', method: play ? 'play' : 'pause' },
+      { name: play ? 'play' : 'pause', type: 'jwplayer' },
+    ];
+    for (const msg of messages) {
+      try {
+        win.postMessage(msg, '*');
+        win.postMessage(JSON.stringify(msg), '*');
+      } catch {
+        /* provider rejected this shape */
+      }
+    }
+    this.sink({ status: play ? 'playing' : 'paused' });
+  }
+
+  play(): void {
+    this.sendPlaybackCommand(true);
+  }
+
+  pause(): void {
+    this.sendPlaybackCommand(false);
+  }
+
   seek(): void {}
   setRate(): void {}
   selectAudioTrack(): void {}

@@ -3123,6 +3123,26 @@
   opacity: 1;
   transform: scale(1.05);
 }
+
+/* Ad-blocker click shield over embed video area.
+   Protects the video surface so accidental/mistaken clicks never trigger
+   third-party ad-redirects, popups, or new tabs (like Opera/Adcash).
+   Leaves top clear for cut/cross [✕] button and bottom 4.2rem clear so
+   provider bottom controls (subtitles [CC], settings [⚙], fullscreen [⛶])
+   remain completely interactive. */
+.fp-embed-shield {
+  position: absolute;
+  top: 3.5rem;
+  left: 0;
+  right: 0;
+  bottom: 4.2rem;
+  z-index: 10;
+  cursor: pointer;
+  background: transparent;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
 .fp-embed-screen-control {
   position: absolute;
   top: 0.6rem;

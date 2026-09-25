@@ -577,6 +577,19 @@ export default function PlayerShell({
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [started, hasError, toggleFullscreen, isFullscreen, pseudoFullscreen]);
 
+  // Block any rogue window.open calls from third-party ad scripts while on the player page
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const originalOpen = window.open;
+    window.open = function (...args: Parameters<typeof window.open>) {
+      console.warn('Blocked popup attempt:', args[0]);
+      return null;
+    };
+    return () => {
+      window.open = originalOpen;
+    };
+  }, []);
+
   return (
     <div className="fp-root">
       <div
@@ -606,6 +619,35 @@ export default function PlayerShell({
       >
         {/* Engine surface. The adapter appends <video> / <iframe> here. */}
         <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
+
+        {/* Ad-blocker click shield over embed video area:
+            Prevents accidental clicks on the video canvas from triggering third-party
+            ad traps (blocking Opera/Adcash popups and unwanted tabs).
+            Single click toggles playback, double click toggles fullscreen. */}
+        {started && !hasError && engine === 'embed' && (
+          <div
+            className="fp-embed-shield"
+            onClick={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+              wake();
+              api.togglePlay();
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation();
+              event.preventDefault();
+              toggleFullscreen();
+            }}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              wake();
+            }}
+            role="button"
+            tabIndex={-1}
+            aria-label={t('togglePlayback')}
+            title="Click to toggle play/pause, double click for fullscreen"
+          />
+        )}
 
         {/* Top-left cut / cross button (exit player / go back) */}
         {started && !hasError && (
