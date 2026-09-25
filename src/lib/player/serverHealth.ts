@@ -112,7 +112,6 @@ const EDGE_RETRIES = 1;
 // Origin only, by design: enough to test the network path, not enough to build a
 // player URL (that stays server-side in src/lib/embed.ts, along with the key).
 const PROVIDER_ORIGIN: Readonly<Record<string, string>> = {
-  vidsrcin: 'https://vidsrc.in',
   vidlink: 'https://vidlink.pro',
   videasy: 'https://player.videasy.net',
   vidfast: 'https://vidfast.pro',
@@ -133,8 +132,7 @@ export const KNOWN_SERVERS: ReadonlyArray<{
   { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 1', confidence: 'title' },
   { id: 'vidfast', name: 'VidFast', label: 'Server 2', confidence: 'live' },
   { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 3', confidence: 'live' },
-  { id: 'vidsrcin', name: 'VidSrc IN (Hindi)', label: 'Server 4', confidence: 'title' },
-  { id: 'nexstream', name: 'NexStream', label: 'Server 5', confidence: 'title' },
+  { id: 'nexstream', name: 'NexStream', label: 'Server 4', confidence: 'title' },
 ];
 
 /** A list with no evidence attached. Never empty, so the UI always has options. */

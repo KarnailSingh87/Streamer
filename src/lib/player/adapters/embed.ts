@@ -31,9 +31,9 @@ import {
 } from '../types';
 
 /** Neither a `load` event nor a postMessage by then ⇒ the provider is not going
- *  to render. Kept short so the automatic server failover (see WatchNow) moves on
- *  quickly instead of leaving the viewer on a dead frame. */
-const LOAD_TIMEOUT_MS = 9000;
+ *  to render. Kept short (3.8s) so automatic server failover moves on
+ *  instantly to a working server instead of leaving the viewer on a dead/404 frame. */
+const LOAD_TIMEOUT_MS = 3800;
 
 /**
  * Every postMessage dialect these embed players are plausibly listening for.
@@ -100,7 +100,7 @@ function volumeMessages(volume01: number, muted: boolean): unknown[] {
 function readProviderMessage(payload: unknown): {
   currentTime?: number;
   duration?: number;
-  state?: 'playing' | 'paused' | 'ended';
+  state?: 'playing' | 'paused' | 'ended' | 'error';
 } | null {
   if (!payload || typeof payload !== 'object') return null;
   const record = payload as Record<string, unknown>;
@@ -109,7 +109,7 @@ function readProviderMessage(payload: unknown): {
     (record.detail as Record<string, unknown> | undefined) ??
     record;
 
-  const out: { currentTime?: number; duration?: number; state?: 'playing' | 'paused' | 'ended' } = {};
+  const out: { currentTime?: number; duration?: number; state?: 'playing' | 'paused' | 'ended' | 'error' } = {};
 
   const time = Number(nested.currentTime ?? nested.time ?? nested.progress ?? nested.watched);
   const duration = Number(nested.duration ?? nested.total);
@@ -117,10 +117,22 @@ function readProviderMessage(payload: unknown): {
   if (Number.isFinite(duration) && duration > 0) out.duration = duration;
 
   const event = String(nested.event ?? nested.eventName ?? record.event ?? '').toLowerCase();
-  if (event === 'pause' || event === 'paused') out.state = 'paused';
-  else if (event === 'ended' || event === 'complete') out.state = 'ended';
-  else if (event === 'play' || event === 'playing' || event === 'timeupdate' || event === 'seeked')
+  if (
+    event === 'error' ||
+    event === 'failed' ||
+    event === 'not_found' ||
+    nested.error ||
+    record.error ||
+    Number(nested.status) === 404
+  ) {
+    out.state = 'error';
+  } else if (event === 'pause' || event === 'paused') {
+    out.state = 'paused';
+  } else if (event === 'ended' || event === 'complete') {
+    out.state = 'ended';
+  } else if (event === 'play' || event === 'playing' || event === 'timeupdate' || event === 'seeked') {
     out.state = 'playing';
+  }
 
   return out.currentTime !== undefined || out.duration !== undefined || out.state ? out : null;
 }
@@ -175,21 +187,18 @@ export class EmbedAdapter implements PlayerAdapter {
     frame.setAttribute('webkitallowfullscreen', 'true');
     frame.setAttribute('mozallowfullscreen', 'true');
     frame.allowFullscreen = true;
-    // Third-party embed providers (e.g. vidlink, 2embed, etc.) explicitly detect iframe sandbox
-    // and refuse playback with "Please Disable Sandbox" when any sandbox attribute is present.
+    // Strict sandbox to prevent third-party popups, redirects, or new tabs from opening.
+    // allow-scripts, allow-same-origin, allow-forms, allow-presentation are granted for full video playback,
+    // while allow-popups and allow-top-navigation are strictly omitted to block adware, redirects, and popups.
+    frame.setAttribute(
+      'sandbox',
+      'allow-scripts allow-same-origin allow-forms allow-presentation'
+    );
 
     frame.addEventListener('load', () => {
       window.clearTimeout(this.loadTimer);
-      // A loaded provider frame is 'playing' from the shell's point of view: it
-      // autoplays and we have no state to read. The pre-roll overlay is removed
-      // so the viewer can reach the provider's own controls.
+      // A loaded provider frame autoplays from the shell's point of view.
       sink({ status: 'playing', error: null });
-      // Never leave a title muted by default. A provider that autoplays often
-      // starts its <video> muted to satisfy the browser's autoplay policy, so we
-      // relay the viewer's real level (unmuted unless they chose otherwise) as
-      // soon as the document exists and again as its player initialises lazily.
-      // Repeated because there is no ack: whichever burst the provider's dialect
-      // understands wins.
       this.pushVolume();
       window.setTimeout(() => this.pushVolume(), 200);
       window.setTimeout(() => this.pushVolume(), 600);
@@ -201,8 +210,6 @@ export class EmbedAdapter implements PlayerAdapter {
 
     this.loadTimer = window.setTimeout(() => {
       if (this.destroyed) return;
-      // The frame already talked to us — it is alive regardless of `load`. Firing
-      // the failover here would drop the viewer off a stream that is playing.
       if (this.frameResponded) return;
       sink({
         status: 'error',
@@ -217,39 +224,39 @@ export class EmbedAdapter implements PlayerAdapter {
     this.onMessage = (event: MessageEvent) => {
       const win = this.frame?.contentWindow;
       if (!win || event.source !== win) return;
+
+      const message = readProviderMessage(event.data);
+      if (message && message.state === 'error') {
+        window.clearTimeout(this.loadTimer);
+        sink({
+          status: 'error',
+          error: {
+            kind: 'playback',
+            message: 'Server failed to stream this title.',
+            retryable: true,
+          },
+        });
+        return;
+      }
+
       if (!this.frameResponded) {
         this.frameResponded = true;
-        // PROOF OF LIFE — CANCELS THE LOAD TIMEOUT.
-        // Not every provider fires `load` on its frame: vidsrc.in (Server 1, the
-        // default automatic pick) posts its first message in under a second and
-        // never fires `load` at all. Clearing the timer only in the `load`
-        // handler meant that frame was declared "did not respond" 9s in and the
-        // shell failed over off a stream that was playing fine. A message from
-        // the frame is strictly stronger evidence than `load`, so it cancels the
-        // timeout too.
+        // Proof of life from provider frame cancels the load timeout
         window.clearTimeout(this.loadTimer);
         sink({ live: true, status: 'playing', error: null });
-        // The provider's own player just came alive — re-assert the viewer's
-        // volume now that there is something listening, so it is not left muted.
         this.pushVolume();
         window.setTimeout(() => this.pushVolume(), 300);
         window.setTimeout(() => this.pushVolume(), 1000);
         window.setTimeout(() => this.pushVolume(), 2000);
       }
-      const message = readProviderMessage(event.data);
+
       if (message) {
         if (message.currentTime !== undefined || message.duration !== undefined) {
-          // The provider volunteers timing. Show a read-only progress bar and
-          // feed Continue Watching; seeking is still impossible, so caps.seek
-          // stays false.
           this.caps.time = true;
         }
         sink({
           ...(message.currentTime !== undefined ? { currentTime: message.currentTime } : {}),
           ...(message.duration !== undefined ? { duration: message.duration } : {}),
-          // A real state from the provider beats our "the frame loaded, assume
-          // playing" guess — this is what makes Up Next / the end card possible
-          // on a server that reports its own `ended`.
           ...(message.state ? { status: message.state } : {}),
         });
       }

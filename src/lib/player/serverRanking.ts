@@ -61,7 +61,6 @@ export interface ServerQuality {
  * renditions for different titles; option 1 is a usable approximation.
  */
 export const SERVER_QUALITY: Readonly<Record<string, ServerQuality>> = {
-  vidsrcin: { maxHeight: null, bitrateKbps: null },
   nexstream: { maxHeight: null, bitrateKbps: null },
   vidlink: { maxHeight: null, bitrateKbps: null },
   videasy: { maxHeight: null, bitrateKbps: null },
@@ -95,8 +94,7 @@ export const PROVIDER_PREFERENCE: Readonly<Record<string, number>> = {
   vidlink: 0,
   vidfast: 1,
   videasy: 2,
-  vidsrcin: 3,
-  nexstream: 4,
+  nexstream: 3,
 };
 
 const PREFERENCE_MAX = 99;

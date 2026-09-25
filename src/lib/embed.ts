@@ -48,7 +48,7 @@ export const IMG_BASE_LG = 'https://image.tmdb.org/t/p/w780';
 const ACCENT = 'e50914';
 
 /** Identifier for a streaming server/source. */
-export type EmbedServerId = 'vidsrcin' | 'nexstream' | 'vidlink' | 'videasy' | 'vidfast';
+export type EmbedServerId = 'nexstream' | 'vidlink' | 'videasy' | 'vidfast';
 
 /** How trustworthy a provider's availability probe can be. */
 export type ProbeConfidence = 'title' | 'live';
@@ -72,8 +72,7 @@ export const EMBED_SERVER_META: ReadonlyArray<{
   { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 1', confidence: 'title' },
   { id: 'vidfast', name: 'VidFast', label: 'Server 2', confidence: 'live' },
   { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 3', confidence: 'live' },
-  { id: 'vidsrcin', name: 'VidSrc IN (Hindi)', label: 'Server 4', confidence: 'title' },
-  { id: 'nexstream', name: 'NexStream', label: 'Server 5', confidence: 'title' },
+  { id: 'nexstream', name: 'NexStream', label: 'Server 4', confidence: 'title' },
 ];
 
 const VALID_SERVERS = new Set<string>(EMBED_SERVER_META.map((s) => s.id));
@@ -123,7 +122,6 @@ export function getEmbedApiKey(): string {
  *                            than sending noise.
  */
 const RESUME_PARAM: Readonly<Record<EmbedServerId, string | null>> = {
-  vidsrcin: null,
   vidlink: 'startAt',
   videasy: 'progress',
   vidfast: 'startAt',
@@ -158,10 +156,6 @@ function providerUrl(server: EmbedServerId, target: EmbedTarget, startAtSeconds 
 
   const base = ((): string => {
   switch (server) {
-    case 'vidsrcin':
-      return isMovie
-        ? `https://vidsrc.in/embed/movie/${id}`
-        : `https://vidsrc.in/embed/tv/${id}/${s}/${e}`;
     case 'vidlink':
       return isMovie
         ? `https://vidlink.pro/movie/${id}?primaryColor=${ACCENT}&autoplay=true&title=false`
@@ -329,21 +323,6 @@ export async function probeServerTimed(
       const res = await fetchWithTimeout(url);
       latencyMs = Date.now() - startedAt;
       if (res.ok) resolved = url;
-    } else if (server === 'vidsrcin') {
-      // Check if vidsrc.in actually has this title or returns an error page (e.g. 404)
-      const url = providerUrl(server, target);
-      const res = await fetchWithTimeout(url);
-      latencyMs = Date.now() - startedAt;
-      if (res.ok) {
-        try {
-          const text = await res.text();
-          if (!text.includes('SOMETHING WENT WRONG') && !text.includes('(404)')) {
-            resolved = url;
-          }
-        } catch {
-          resolved = url;
-        }
-      }
     } else {
       // 'live' confidence: these players respond identically for real and bogus
       // ids, so all we can honestly verify is that the provider is up and
