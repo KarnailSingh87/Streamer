@@ -28,6 +28,9 @@ if (isNode) {
 const noHmr = process.env.NO_HMR === '1';
 
 export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+  },
   site: process.env.PUBLIC_SITE_URL || 'https://streamer.duckdns.org',
   output: 'server',
   adapter,
