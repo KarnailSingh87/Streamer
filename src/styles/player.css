@@ -64,6 +64,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 3rem);
   background: #000;
   border-radius: var(--fp-radius);
   overflow: hidden;
@@ -106,6 +107,16 @@
   border: 0;
   display: block;
   background: #000;
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+
+.fp-surface iframe::-webkit-scrollbar,
+.fp-surface iframe.fp-embed-frame::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .fp-video {

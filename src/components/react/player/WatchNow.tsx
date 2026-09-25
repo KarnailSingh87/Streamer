@@ -520,7 +520,8 @@ export default function WatchNow({
     if (resumeAt && resumeAt > 1) setEmbedResumeAt(resumeAt);
     setStarted(true);
     setEndedFlag(false);
-  }, [isSeries, current, activeSeason, firstEpisodeNumber, resumeAt]);
+    api.enterFullscreen();
+  }, [isSeries, current, activeSeason, firstEpisodeNumber, resumeAt, api]);
 
   const reload = useCallback(() => {
     setEndedFlag(false);
@@ -590,6 +591,7 @@ export default function WatchNow({
       setStarted(true);
       setMenu(null);
       setReloadKey((key) => key + 1);
+      api.enterFullscreen();
 
       if (typeof window !== 'undefined') {
         try {
@@ -609,7 +611,7 @@ export default function WatchNow({
         }
       }
     },
-    [setMenu, resetTried]
+    [setMenu, resetTried, api]
   );
 
   const replay = useCallback(() => {

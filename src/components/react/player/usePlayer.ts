@@ -140,6 +140,8 @@ export interface PlayerApi {
   setZoom: (value: number) => void;
   toggleGestures: () => void;
   updatePrefs: (patch: Partial<PlayerPrefs>) => void;
+  enterFullscreen: () => void;
+  exitFullscreen: () => void;
   toggleFullscreen: () => void;
   requestPip: () => void;
   /** Reveal the controls and restart the idle timer. */
@@ -861,6 +863,8 @@ export function usePlayer({
     setZoom,
     toggleGestures,
     updatePrefs,
+    enterFullscreen,
+    exitFullscreen,
     toggleFullscreen,
     requestPip,
     wake,

@@ -101,7 +101,7 @@ const RIPPLE_MS = 520;
  * reveal. Matches usePlayer's IDLE_MS so the provider frame's one piece of
  * Streamer chrome behaves like the chrome on our own engines.
  */
-const SCREEN_CTL_MS = 1000;
+const SCREEN_CTL_MS = 3500;
 
 export interface PlayerShellProps {
   api: PlayerApi;

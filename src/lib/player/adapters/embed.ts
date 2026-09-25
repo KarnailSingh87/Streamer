@@ -155,6 +155,9 @@ export class EmbedAdapter implements PlayerAdapter {
     frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
     frame.allowFullscreen = true;
     frame.referrerPolicy = 'no-referrer';
+    frame.setAttribute('scrolling', 'no');
+    frame.style.overflow = 'hidden';
+    frame.style.scrollbarWidth = 'none';
     // STRICT SECURITY SANDBOX:
     // Allows scripts, same-origin, and forms so third-party media players work,
     // while strictly preventing top-level navigation (redirecting the viewer to ad sites)
