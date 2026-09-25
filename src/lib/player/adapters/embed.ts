@@ -150,12 +150,25 @@ export class EmbedAdapter implements PlayerAdapter {
     frame.className = 'fp-embed-frame';
     frame.src = source.url;
     frame.title = 'Streaming player';
-    frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
-    frame.allowFullscreen = true;
-    frame.referrerPolicy = 'no-referrer';
+    frame.referrerPolicy = 'origin-when-cross-origin';
     frame.setAttribute('scrolling', 'no');
     frame.style.overflow = 'hidden';
     frame.style.scrollbarWidth = 'none';
+    // Full permissions granted across all origins (*) so embed player features:
+    // - Subtitles (loading external caption tracks and font assets)
+    // - Settings menu & playback rate/server selection
+    // - Entire screen / fullscreen toggle
+    // function seamlessly with full browser functionality.
+    frame.allow =
+      'accelerometer *; autoplay *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *; fullscreen *';
+    frame.setAttribute(
+      'allow',
+      'accelerometer *; autoplay *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *; fullscreen *'
+    );
+    frame.setAttribute('allowfullscreen', 'true');
+    frame.setAttribute('webkitallowfullscreen', 'true');
+    frame.setAttribute('mozallowfullscreen', 'true');
+    frame.allowFullscreen = true;
     // Third-party embed providers (e.g. vidlink, 2embed, etc.) explicitly detect iframe sandbox
     // and refuse playback with "Please Disable Sandbox" when any sandbox attribute is present.
 

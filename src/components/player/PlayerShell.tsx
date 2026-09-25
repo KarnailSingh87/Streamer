@@ -96,12 +96,7 @@ type Zone = 'left' | 'centre' | 'right';
 const DOUBLE_TAP_MS = 300;
 /** Lifetime of the ±10s ripple. Must match the CSS animation duration. */
 const RIPPLE_MS = 520;
-/**
- * How long the embed fullscreen/minimize button stays on screen after any
- * reveal. Matches usePlayer's IDLE_MS so the provider frame's one piece of
- * Streamer chrome behaves like the chrome on our own engines.
- */
-const SCREEN_CTL_MS = 3500;
+
 
 export interface PlayerShellProps {
   api: PlayerApi;
@@ -561,58 +556,7 @@ export default function PlayerShell({
     event.stopPropagation();
   }, []);
 
-  /**
-   * THE EMBED FULLSCREEN/MINIMIZE BUTTON'S OWN 1-SECOND LIFE.
-   *
-   * It cannot ride on `controlsVisible` like the rest of the chrome, because the
-   * signals that keep that alive do not survive a cross-origin iframe:
-   *
-   *   • `mousemove` raised inside the provider's frame never reaches this
-   *     document, so `wake()` stops being called the moment the cursor is over
-   *     the video — yet CSS `:hover` DOES cross the boundary (the parent sees the
-   *     <iframe> element as hovered). Keying the button off `:hover` therefore
-   *     pinned it on screen for as long as the cursor sat anywhere on the stage.
-   *   • On a touch screen there is no hover at all, so the old rule just forced
-   *     it permanently visible at `opacity: .72`.
-   *
-   * So visibility is owned here: any reveal starts a 1s countdown and the button
-   * goes away when it expires, whatever the pointer is doing. A cursor resting on
-   * the button itself (or keyboard focus) holds it open — a control that vanishes
-   * from under the hand reaching for it is the bug, not the feature.
-   */
-  const [screenCtlVisible, setScreenCtlVisible] = useState(false);
-  const screenCtlTimer = useRef<number | undefined>(undefined);
-  const screenCtlHeld = useRef(false);
 
-  const revealScreenCtl = useCallback(() => {
-    setScreenCtlVisible(true);
-    window.clearTimeout(screenCtlTimer.current);
-    if (screenCtlHeld.current) return;
-    screenCtlTimer.current = window.setTimeout(
-      () => setScreenCtlVisible(false),
-      SCREEN_CTL_MS
-    );
-  }, []);
-
-  /** Pointer resting on / focus inside the button: suspend the countdown. */
-  const holdScreenCtl = useCallback(
-    (held: boolean) => {
-      screenCtlHeld.current = held;
-      if (held) {
-        window.clearTimeout(screenCtlTimer.current);
-        setScreenCtlVisible(true);
-      } else {
-        revealScreenCtl();
-      }
-    },
-    [revealScreenCtl]
-  );
-
-  useEffect(() => {
-    if (started && engine === 'embed') {
-      revealScreenCtl();
-    }
-  }, [started, engine, revealScreenCtl]);
 
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
@@ -644,12 +588,8 @@ export default function PlayerShell({
         onMouseMove={(event) => {
           trackPointerHold(event);
           wake();
-          revealScreenCtl();
         }}
-        // `mousemove` dies at the provider frame's edge, but crossing INTO the
-        // stage is still reported here (the parent owns the <iframe> element even
-        // though it cannot see inside it) — so this is the mouse's wake signal.
-        onMouseEnter={revealScreenCtl}
+        onMouseEnter={wake}
         // A cursor that leaves the stage (to another window, to the page below)
         // must release the hold even though no further move arrives inside it.
         onMouseLeave={() => {
@@ -667,53 +607,28 @@ export default function PlayerShell({
         {/* Engine surface. The adapter appends <video> / <iframe> here. */}
         <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
 
-        {/* Third-party embed screen control (Streamer's clean fullscreen & back controls) */}
-        {started && engine === 'embed' && !hasError && (
-          <>
-            {!screenCtlVisible && (
-              <div
-                className="fp-embed-wake"
-                onClick={revealScreenCtl}
-                aria-hidden="true"
-              />
-            )}
-            {onBack && (
-              <div
-                className={`fp-embed-back-control${screenCtlVisible ? ' is-visible' : ''}`}
-                onMouseEnter={() => holdScreenCtl(true)}
-                onMouseLeave={() => holdScreenCtl(false)}
-              >
-                <button
-                  type="button"
-                  className="fp-embed-screen-btn"
-                  onClick={onBack}
-                  aria-label={t('back')}
-                  title={t('back')}
-                >
-                  <CloseIcon size={22} />
-                </button>
-              </div>
-            )}
-            <div
-              className={`fp-embed-screen-control${screenCtlVisible ? ' is-visible' : ''}`}
-              onMouseEnter={() => holdScreenCtl(true)}
-              onMouseLeave={() => holdScreenCtl(false)}
+        {/* Top-left cut / cross button (exit player / go back) */}
+        {started && !hasError && (
+          <div className="fp-embed-back-control">
+            <button
+              type="button"
+              className="fp-embed-screen-btn"
+              onClick={() => {
+                if (document.fullscreenElement) {
+                  document.exitFullscreen().catch(() => {});
+                }
+                if (onBack) {
+                  onBack();
+                } else if (typeof window !== 'undefined' && window.history.length > 1) {
+                  window.history.back();
+                }
+              }}
+              aria-label={t('back')}
+              title={t('back')}
             >
-              <button
-                type="button"
-                className="fp-embed-screen-btn"
-                onClick={toggleFullscreen}
-                aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
-                title={`${isFullscreen ? t('exitFullscreen') : t('fullscreen')} (F)`}
-              >
-                {isFullscreen || pseudoFullscreen ? (
-                  <ExitFullscreenIcon size={24} />
-                ) : (
-                  <FullscreenIcon size={24} />
-                )}
-              </button>
-            </div>
-          </>
+              <CloseIcon size={22} />
+            </button>
+          </div>
         )}
 
         {/* Pre-play splash. The play control is a real button, so Enter/Space
