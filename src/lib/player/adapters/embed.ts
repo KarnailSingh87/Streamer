@@ -19,10 +19,8 @@
 //   • A frame that neither fires `load` NOR posts a message is treated as a
 //     network failure so the shell can fail over to another server. Either signal
 //     alone is enough to call it alive — some providers only ever send one.
-//
-// The iframe is sandboxed with allow-scripts, allow-same-origin, allow-forms,
-// and allow-presentation to allow video player functionality while strictly
-// blocking top-level window redirection and unwanted downloads (Opera Mini, etc.).
+// Sandbox attributes are omitted because third-party providers detect them and
+// refuse to load or display "Please Disable Sandbox".
 
 import {
   NO_CAPS,
@@ -158,14 +156,8 @@ export class EmbedAdapter implements PlayerAdapter {
     frame.setAttribute('scrolling', 'no');
     frame.style.overflow = 'hidden';
     frame.style.scrollbarWidth = 'none';
-    // STRICT SECURITY SANDBOX:
-    // Allows scripts, same-origin, and forms so third-party media players work,
-    // while strictly preventing top-level navigation (redirecting the viewer to ad sites)
-    // and automatic file downloads (e.g. Opera Mini APK / malware downloads).
-    frame.setAttribute(
-      'sandbox',
-      'allow-scripts allow-same-origin allow-forms allow-presentation'
-    );
+    // Third-party embed providers (e.g. vidlink, 2embed, etc.) explicitly detect iframe sandbox
+    // and refuse playback with "Please Disable Sandbox" when any sandbox attribute is present.
 
     frame.addEventListener('load', () => {
       window.clearTimeout(this.loadTimer);
