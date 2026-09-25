@@ -624,7 +624,7 @@ export default function PlayerShell({
             Prevents accidental clicks on the video canvas from triggering third-party
             ad traps (blocking Opera/Adcash popups and unwanted tabs).
             Single click toggles playback, double click toggles fullscreen. */}
-        {started && !hasError && engine === 'embed' && (
+        {started && !hasError && !ended && engine === 'embed' && (
           <div
             className="fp-embed-shield"
             onClick={(event) => {

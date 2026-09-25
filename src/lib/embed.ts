@@ -162,8 +162,8 @@ function providerUrl(server: EmbedServerId, target: EmbedTarget, startAtSeconds 
         : `https://vidlink.pro/tv/${id}/${s}/${e}?primaryColor=${ACCENT}&autoplay=true&nextbutton=true`;
     case 'videasy':
       return isMovie
-        ? `https://player.videasy.net/movie/${id}?color=${ACCENT}`
-        : `https://player.videasy.net/tv/${id}/${s}/${e}?color=${ACCENT}&nextEpisode=true&episodeSelector=true`;
+        ? `https://player.videasy.net/movie/${id}?color=${ACCENT}&autoplay=true`
+        : `https://player.videasy.net/tv/${id}/${s}/${e}?color=${ACCENT}&autoplay=true&nextEpisode=true&episodeSelector=true`;
     case 'vidfast':
       return isMovie
         ? `https://vidfast.pro/movie/${id}?theme=${ACCENT}&autoPlay=true`
