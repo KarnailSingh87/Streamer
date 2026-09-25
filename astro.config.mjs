@@ -6,8 +6,9 @@ import tailwindcss from '@tailwindcss/vite';
 // https://astro.build/config
 
 // ── Platform target ──────────────────────────────────────────────────────────
-// DEPLOY_TARGET: 'node' (Render / Node), 'vercel', or 'cloudflare' (default).
-const target = process.env.DEPLOY_TARGET ?? (process.env.RENDER ? 'node' : 'cloudflare');
+// DEPLOY_TARGET: 'node' (Render / Node / local dev), 'vercel', or 'cloudflare'.
+const isDev = process.argv.includes('dev') || process.env.npm_lifecycle_event === 'dev';
+const target = process.env.DEPLOY_TARGET ?? (isDev || process.env.RENDER ? 'node' : 'cloudflare');
 const isVercel = target === 'vercel';
 const isNode = target === 'node' || target === 'render';
 
