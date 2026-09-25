@@ -16,7 +16,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { VolumeIcon } from './Icons';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface VolumeControlProps {
   volume: number;

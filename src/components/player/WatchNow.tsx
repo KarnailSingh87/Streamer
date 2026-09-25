@@ -25,17 +25,17 @@ import SourceBar, { type ServerOption } from './SourceBar';
 import EpisodeOverlay, { type EpisodeItem, type SeasonOption } from './EpisodeOverlay';
 import UpNext from './UpNext';
 import EndCard, { type RelatedTitle } from './EndCard';
-import { useEmbedServers } from '../useEmbedServers';
-import { createPlayerT } from '../../../lib/player/strings';
-import { languageDirection } from '../../../lib/player/languages';
-import { SUPPORTED_LOCALES, type Locale } from '../../../lib/i18n';
+import { useEmbedServers } from './useEmbedServers';
+import { createPlayerT } from '../../lib/player/strings';
+import { languageDirection } from '../../lib/player/languages';
+import { SUPPORTED_LOCALES, type Locale } from '../../lib/i18n';
 import type {
   EngineId,
   MediaSource,
   PlayerSource,
   TimeMarker,
-} from '../../../lib/player/types';
-import { getContinueEntry, saveContinueWatching } from '../../../lib/continueWatching';
+} from '../../lib/player/types';
+import { getContinueEntry, saveContinueWatching } from '../../lib/continueWatching';
 
 /** Seconds of credits left when the Up Next prompt appears. */
 const UPNEXT_LEAD_SECONDS = 30;

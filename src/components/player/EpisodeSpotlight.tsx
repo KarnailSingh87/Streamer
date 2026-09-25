@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { EpisodeItem } from './EpisodeOverlay';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface EpisodeSpotlightProps {
   episodes: EpisodeItem[];

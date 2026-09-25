@@ -26,9 +26,9 @@ import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, ArrowLeft, ArrowRight } from 'lucide-react';
-import { getStackStyle } from '../../ui/circular-testimonials';
+import { getStackStyle } from '../ui/circular-testimonials';
 import type { EpisodeItem } from './EpisodeOverlay';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface EpisodeCircleProps {
   episodes: EpisodeItem[];

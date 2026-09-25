@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PlayIcon } from './Icons';
 import type { EpisodeItem } from './EpisodeOverlay';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { PlayerT } from '../../lib/player/strings';
 
 const STILL = 'https://image.tmdb.org/t/p/w300';
 

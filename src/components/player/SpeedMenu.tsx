@@ -6,8 +6,8 @@
 // Keyboard: < and > step through the same list from anywhere on the stage.
 
 import { CheckIcon } from './Icons';
-import { RATES } from '../../../lib/player/prefs';
-import type { PlayerT } from '../../../lib/player/strings';
+import { RATES } from '../../lib/player/prefs';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface SpeedMenuProps {
   rate: number;

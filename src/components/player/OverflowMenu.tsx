@@ -24,8 +24,8 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from './Icons';
-import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, RATES, ZOOM_MAX, ZOOM_MIN } from '../../../lib/player/prefs';
-import type { PlayerT } from '../../../lib/player/strings';
+import { BRIGHTNESS_MAX, BRIGHTNESS_MIN, RATES, ZOOM_MAX, ZOOM_MIN } from '../../lib/player/prefs';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface OverflowMenuProps {
   brightness: number;

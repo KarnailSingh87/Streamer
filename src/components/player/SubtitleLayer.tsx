@@ -16,9 +16,9 @@
 // • The whole block lifts above the control bar while the controls are visible,
 //   instead of being covered by them.
 
-import type { ActiveCue } from '../../../lib/player/types';
-import type { SubtitleBackdrop, SubtitleSize } from '../../../lib/player/prefs';
-import { scriptClass } from '../../../lib/player/languages';
+import type { ActiveCue } from '../../lib/player/types';
+import type { SubtitleBackdrop, SubtitleSize } from '../../lib/player/prefs';
+import { scriptClass } from '../../lib/player/languages';
 
 interface SubtitleLayerProps {
   cues: ActiveCue[];

@@ -17,9 +17,9 @@
 //   grabbable without a stylus, while the painted bar stays thin.
 
 import { useCallback, useMemo, useRef, useState } from 'react';
-import type { BufferedRange, TimeMarker } from '../../../lib/player/types';
-import { formatTime, spokenTime } from '../../../lib/player/format';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { BufferedRange, TimeMarker } from '../../lib/player/types';
+import { formatTime, spokenTime } from '../../lib/player/format';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface SeekBarProps {
   currentTime: number;

@@ -289,10 +289,9 @@ export default function HeroCarousel({ slides, label }: Props) {
           max-height: 100svh;
           display: grid;
           grid-template-rows: 1fr auto;
-          overflow: hidden;
+          overflow: clip;
           background: #000;
           outline: none;
-          touch-action: pan-y; /* allow vertical scroll; we handle horizontal swipes */
         }
         .nf-hero:focus-visible { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.6); }
         @media (max-width: 767px) {
@@ -307,7 +306,7 @@ export default function HeroCarousel({ slides, label }: Props) {
         }
 
         /* ── Backdrop ── */
-        .nf-stage { position: absolute; inset: 0; }
+        .nf-stage { position: absolute; inset: 0; pointer-events: none; }
         .nf-bg { position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease; will-change: opacity; }
         .nf-bg--active { opacity: 1; }
         .nf-bg-img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }

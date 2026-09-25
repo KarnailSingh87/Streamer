@@ -10,7 +10,7 @@
 
 import { useEffect, useRef } from 'react';
 import { NextIcon, ReplayIcon } from './Icons';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { PlayerT } from '../../lib/player/strings';
 
 export interface RelatedTitle {
   id: number;

@@ -260,7 +260,7 @@ html {
 }
 
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -269,7 +269,7 @@ body {
   line-height: var(--line-height-normal);
   margin: 0;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -733,7 +733,6 @@ html {
 /* Smooth momentum scroll on iOS */
 body {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
 }
 
 /* Thin scrollbar on mobile — hide completely on touch devices */

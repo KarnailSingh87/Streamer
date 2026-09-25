@@ -233,13 +233,14 @@ const galleryImages: string[] = [
     display: flex;
     align-items: flex-end;
     padding-bottom: 3rem;
-    overflow: hidden;
+    overflow: clip;
     background: #000;
   }
 
   .detail-backdrop {
     position: absolute;
     inset: 0;
+    pointer-events: none;
   }
 
   .detail-backdrop-img {

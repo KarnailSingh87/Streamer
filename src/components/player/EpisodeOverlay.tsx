@@ -22,7 +22,7 @@ import { useEffect, useRef } from 'react';
 import { CloseIcon, PlayIcon } from './Icons';
 import EpisodeSpotlight from './EpisodeSpotlight';
 import EpisodeCircle from './EpisodeCircle';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { PlayerT } from '../../lib/player/strings';
 
 export interface SeasonOption {
   season_number: number;

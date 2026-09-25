@@ -30,7 +30,7 @@ import {
   type PlayerSnapshot,
   type PlayerSource,
   type TimeMarker,
-} from '../../../lib/player/types';
+} from '../../lib/player/types';
 import {
   BRIGHTNESS_MAX,
   BRIGHTNESS_MIN,
@@ -42,9 +42,9 @@ import {
   readPrefs,
   writePrefs,
   type PlayerPrefs,
-} from '../../../lib/player/prefs';
-import { resolveTrack } from '../../../lib/player/format';
-import type { PlayerT } from '../../../lib/player/strings';
+} from '../../lib/player/prefs';
+import { resolveTrack } from '../../lib/player/format';
+import type { PlayerT } from '../../lib/player/strings';
 
 /**
  * Idle delay before the control bar (volume, captions, full screen, everything)
@@ -269,13 +269,13 @@ export function usePlayer({
     const boot = async () => {
       let adapter: PlayerAdapter;
       if (source.engine === 'html5') {
-        const { Html5Adapter } = await import('../../../lib/player/adapters/html5');
+        const { Html5Adapter } = await import('../../lib/player/adapters/html5');
         adapter = new Html5Adapter();
       } else if (source.engine === 'youtube') {
-        const { YouTubeAdapter } = await import('../../../lib/player/adapters/youtube');
+        const { YouTubeAdapter } = await import('../../lib/player/adapters/youtube');
         adapter = new YouTubeAdapter();
       } else {
-        const { EmbedAdapter } = await import('../../../lib/player/adapters/embed');
+        const { EmbedAdapter } = await import('../../lib/player/adapters/embed');
         adapter = new EmbedAdapter();
       }
       if (cancelled) return;

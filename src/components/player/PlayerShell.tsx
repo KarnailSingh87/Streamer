@@ -46,10 +46,10 @@ import {
 } from 'react';
 import type { PlayerApi } from './usePlayer';
 import { SKIP_SECONDS } from './usePlayer';
-import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../../../lib/player/prefs';
-import type { TimeMarker } from '../../../lib/player/types';
-import { formatTime } from '../../../lib/player/format';
-import type { PlayerT } from '../../../lib/player/strings';
+import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../../lib/player/prefs';
+import type { TimeMarker } from '../../lib/player/types';
+import { formatTime } from '../../lib/player/format';
+import type { PlayerT } from '../../lib/player/strings';
 import SeekBar from './SeekBar';
 import VolumeControl from './VolumeControl';
 import Popover from './Popover';

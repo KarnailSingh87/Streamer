@@ -25,8 +25,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckIcon, CloseIcon } from './Icons';
-import type { EngineId } from '../../../lib/player/types';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { EngineId } from '../../lib/player/types';
+import type { PlayerT } from '../../lib/player/strings';
 
 export interface ServerOption {
   id: string;

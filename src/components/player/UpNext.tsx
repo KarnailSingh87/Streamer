@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { NextIcon, CloseIcon } from './Icons';
-import type { PlayerT } from '../../../lib/player/strings';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface UpNextProps {
   /** e.g. "S2 E4" */

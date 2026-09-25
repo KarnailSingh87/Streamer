@@ -17,10 +17,10 @@
 //   ourselves — styling a track the provider paints is impossible.
 
 import { CheckIcon } from './Icons';
-import { nativeLanguageName, languageDirection, scriptClass } from '../../../lib/player/languages';
-import type { AudioTrackInfo, TextTrackInfo } from '../../../lib/player/types';
-import type { SubtitleBackdrop, SubtitleSize } from '../../../lib/player/prefs';
-import type { PlayerT } from '../../../lib/player/strings';
+import { nativeLanguageName, languageDirection, scriptClass } from '../../lib/player/languages';
+import type { AudioTrackInfo, TextTrackInfo } from '../../lib/player/types';
+import type { SubtitleBackdrop, SubtitleSize } from '../../lib/player/prefs';
+import type { PlayerT } from '../../lib/player/strings';
 
 interface TracksMenuProps {
   audioTracks: AudioTrackInfo[];
