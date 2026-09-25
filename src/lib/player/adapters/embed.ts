@@ -60,21 +60,27 @@ function volumeMessages(volume01: number, muted: boolean): unknown[] {
     { type: 'volume', volume: volume01 },
     { type: 'volume', value: volume01 },
     { type: 'setVolume', value: volume01 },
+    { type: 'setVolume', volume: volume01 },
     { type: 'PLAYER_VOLUME', volume: volume01 },
     { type: 'PLAYER_COMMAND', command: 'setVolume', value: volume01 },
     { type: 'MEDIA_COMMAND', command: 'volume', value: volume01 },
     { action: 'setVolume', volume: volume01 },
+    { action: 'setVolume', value: volume01 },
     // YouTube-style ({func, args}) — used by more embed wrappers than YouTube.
     { event: 'command', func: 'setVolume', args: [pct] },
     // player.js (embedly) — the de-facto standard for embedded players.
     { context: 'player.js', version: '0.0.11', method: 'setVolume', value: pct },
     // JW Player's iframe bridge (VidLink can be switched to JW with ?player=jw).
     { name: 'setVolume', type: 'jwplayer', value: pct },
-    // Mute is a separate command in every one of those dialects.
+    // Mute / unmute commands in every known dialect.
     { type: muted ? 'mute' : 'unmute' },
+    { type: muted ? 'mute' : 'unMute' },
     { type: 'setMuted', value: muted },
+    { type: 'setMuted', muted },
     { type: 'PLAYER_COMMAND', command: 'setMuted', value: muted },
     { action: muted ? 'mute' : 'unmute' },
+    { action: muted ? 'mute' : 'unMute' },
+    { action: 'setMuted', value: muted },
     { event: 'command', func: muted ? 'mute' : 'unMute', args: [] },
     { context: 'player.js', version: '0.0.11', method: muted ? 'mute' : 'unmute' },
     { name: muted ? 'mute' : 'unmute', type: 'jwplayer' },
@@ -185,9 +191,11 @@ export class EmbedAdapter implements PlayerAdapter {
       // Repeated because there is no ack: whichever burst the provider's dialect
       // understands wins.
       this.pushVolume();
-      window.setTimeout(() => this.pushVolume(), 300);
-      window.setTimeout(() => this.pushVolume(), 800);
+      window.setTimeout(() => this.pushVolume(), 200);
+      window.setTimeout(() => this.pushVolume(), 600);
+      window.setTimeout(() => this.pushVolume(), 1200);
       window.setTimeout(() => this.pushVolume(), 2500);
+      window.setTimeout(() => this.pushVolume(), 4000);
     });
     host.appendChild(frame);
 
@@ -224,6 +232,9 @@ export class EmbedAdapter implements PlayerAdapter {
         // The provider's own player just came alive — re-assert the viewer's
         // volume now that there is something listening, so it is not left muted.
         this.pushVolume();
+        window.setTimeout(() => this.pushVolume(), 300);
+        window.setTimeout(() => this.pushVolume(), 1000);
+        window.setTimeout(() => this.pushVolume(), 2000);
       }
       const message = readProviderMessage(event.data);
       if (message) {
@@ -254,6 +265,7 @@ export class EmbedAdapter implements PlayerAdapter {
     for (const message of volumeMessages(level, muted || volume === 0)) {
       try {
         win.postMessage(message, '*');
+        win.postMessage(JSON.stringify(message), '*');
       } catch {
         /* provider rejected this shape — the next dialect may land */
       }

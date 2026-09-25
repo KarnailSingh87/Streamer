@@ -79,8 +79,8 @@ export function readPrefs(): PlayerPrefs {
     if (!raw) return DEFAULT_PREFS;
     const p = JSON.parse(raw) as Partial<PlayerPrefs>;
     return {
-      volume: clamp(Number(p.volume ?? 1), 0, 1),
-      muted: !!p.muted,
+      volume: typeof p.volume === 'number' && Number.isFinite(p.volume) && p.volume > 0 ? clamp(p.volume, 0, 1) : 1,
+      muted: false,
       rate: RATES.includes(Number(p.rate) as (typeof RATES)[number]) ? Number(p.rate) : 1,
       brightness: clamp(Number(p.brightness) || 1, BRIGHTNESS_MIN, BRIGHTNESS_MAX),
       zoom: clamp(Number(p.zoom) || 1, ZOOM_MIN, ZOOM_MAX),
