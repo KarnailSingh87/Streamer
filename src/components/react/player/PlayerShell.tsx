@@ -608,6 +608,31 @@ export default function PlayerShell({
     [revealScreenCtl]
   );
 
+  useEffect(() => {
+    if (started && engine === 'embed') {
+      revealScreenCtl();
+    }
+  }, [started, engine, revealScreenCtl]);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'f' || e.key === 'F') {
+        if (started && !hasError) {
+          e.preventDefault();
+          toggleFullscreen();
+        }
+      } else if (e.key === 'Escape' && (isFullscreen || pseudoFullscreen)) {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [started, hasError, toggleFullscreen, isFullscreen, pseudoFullscreen]);
+
   return (
     <div className="fp-root">
       <div
@@ -641,6 +666,55 @@ export default function PlayerShell({
       >
         {/* Engine surface. The adapter appends <video> / <iframe> here. */}
         <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
+
+        {/* Third-party embed screen control (Streamer's clean fullscreen & back controls) */}
+        {started && engine === 'embed' && !hasError && (
+          <>
+            {!screenCtlVisible && (
+              <div
+                className="fp-embed-wake"
+                onClick={revealScreenCtl}
+                aria-hidden="true"
+              />
+            )}
+            {onBack && (
+              <div
+                className={`fp-embed-back-control${screenCtlVisible ? ' is-visible' : ''}`}
+                onMouseEnter={() => holdScreenCtl(true)}
+                onMouseLeave={() => holdScreenCtl(false)}
+              >
+                <button
+                  type="button"
+                  className="fp-embed-screen-btn"
+                  onClick={onBack}
+                  aria-label={t('back')}
+                  title={t('back')}
+                >
+                  <CloseIcon size={22} />
+                </button>
+              </div>
+            )}
+            <div
+              className={`fp-embed-screen-control${screenCtlVisible ? ' is-visible' : ''}`}
+              onMouseEnter={() => holdScreenCtl(true)}
+              onMouseLeave={() => holdScreenCtl(false)}
+            >
+              <button
+                type="button"
+                className="fp-embed-screen-btn"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
+                title={`${isFullscreen ? t('exitFullscreen') : t('fullscreen')} (F)`}
+              >
+                {isFullscreen || pseudoFullscreen ? (
+                  <ExitFullscreenIcon size={24} />
+                ) : (
+                  <FullscreenIcon size={24} />
+                )}
+              </button>
+            </div>
+          </>
+        )}
 
         {/* Pre-play splash. The play control is a real button, so Enter/Space
             start playback; the icon carries the whole meaning, so there is no

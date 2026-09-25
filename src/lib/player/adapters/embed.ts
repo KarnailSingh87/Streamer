@@ -20,8 +20,9 @@
 //     network failure so the shell can fail over to another server. Either signal
 //     alone is enough to call it alive — some providers only ever send one.
 //
-// The iframe is deliberately NOT sandboxed: these providers detect the sandbox
-// attribute and refuse to run.
+// The iframe is sandboxed with allow-scripts, allow-same-origin, allow-forms,
+// and allow-presentation to allow video player functionality while strictly
+// blocking top-level window redirection and unwanted downloads (Opera Mini, etc.).
 
 import {
   NO_CAPS,
@@ -154,6 +155,14 @@ export class EmbedAdapter implements PlayerAdapter {
     frame.allow = 'autoplay; encrypted-media; fullscreen; picture-in-picture';
     frame.allowFullscreen = true;
     frame.referrerPolicy = 'no-referrer';
+    // STRICT SECURITY SANDBOX:
+    // Allows scripts, same-origin, and forms so third-party media players work,
+    // while strictly preventing top-level navigation (redirecting the viewer to ad sites)
+    // and automatic file downloads (e.g. Opera Mini APK / malware downloads).
+    frame.setAttribute(
+      'sandbox',
+      'allow-scripts allow-same-origin allow-forms allow-presentation'
+    );
 
     frame.addEventListener('load', () => {
       window.clearTimeout(this.loadTimer);

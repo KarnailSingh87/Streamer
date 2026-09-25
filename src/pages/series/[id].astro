@@ -15,6 +15,11 @@ if (!id || isNaN(parseInt(id))) {
   return Astro.redirect('/series');
 }
 
+const reqSeason = Astro.url.searchParams.get('season');
+const reqEpisode = Astro.url.searchParams.get('episode');
+const initialSeason = reqSeason && /^\d+$/.test(reqSeason) ? parseInt(reqSeason, 10) : undefined;
+const initialEpisode = reqEpisode && /^\d+$/.test(reqEpisode) ? parseInt(reqEpisode, 10) : undefined;
+
 let data: Awaited<ReturnType<typeof getSeriesFull>> | null = null;
 let error: string | null = null;
 let notFound = false;
@@ -191,6 +196,8 @@ const galleryImages: string[] = [
           related={relatedForPlayer}
           genres={(series.genres ?? []).map((g) => g.name)}
           rating={rating}
+          initialSeason={initialSeason}
+          initialEpisode={initialEpisode}
         />
 
 

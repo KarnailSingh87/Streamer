@@ -76,6 +76,8 @@ export interface WatchNowProps {
   ratingBadge?: string;
   /** Explicit content advisory description */
   contentAdvisory?: string;
+  initialSeason?: number;
+  initialEpisode?: number;
 }
 
 export default function WatchNow({
@@ -94,6 +96,8 @@ export default function WatchNow({
   rating,
   ratingBadge,
   contentAdvisory,
+  initialSeason,
+  initialEpisode,
 }: WatchNowProps) {
   /**
    * Locale is resolved in the browser, not on the server. Detail pages are
@@ -167,14 +171,20 @@ export default function WatchNow({
     return [{ season_number: 1, name: 'Season 1', episode_count: 0 }];
   }, [isSeries, seasons]);
 
-  const firstSeason = effectiveSeasons[0]?.season_number ?? 1;
+  const firstSeason = initialSeason ?? effectiveSeasons[0]?.season_number ?? 1;
   const [activeSeason, setActiveSeason] = useState(firstSeason);
   const [episodes, setEpisodes] = useState<EpisodeItem[]>([]);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [episodesError, setEpisodesError] = useState(false);
   const [seasonNonce, setSeasonNonce] = useState(0);
   const episodeCache = useRef(new Map<number, EpisodeItem[]>());
-  const [current, setCurrent] = useState<{ season: number; episode: number } | null>(null);
+  const [current, setCurrent] = useState<{ season: number; episode: number } | null>(() => {
+    if (!isSeries) return null;
+    return {
+      season: initialSeason ?? firstSeason,
+      episode: initialEpisode ?? 1,
+    };
+  });
 
   // ── Continue Watching ─────────────────────────────────────────────────────
   const [resumeAt, setResumeAt] = useState<number | null>(null);
@@ -226,9 +236,9 @@ export default function WatchNow({
   } = useEmbedServers({
     type: isSeries ? 'tv' : 'movie',
     id,
-    season: current?.season ?? null,
-    episode: current?.episode ?? null,
-    enabled: engine === 'embed' && (!isSeries || current !== null),
+    season: current?.season ?? activeSeason,
+    episode: current?.episode ?? 1,
+    enabled: engine === 'embed',
     preferred: preferredServer,
   });
 
@@ -580,6 +590,24 @@ export default function WatchNow({
       setStarted(true);
       setMenu(null);
       setReloadKey((key) => key + 1);
+
+      if (typeof window !== 'undefined') {
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set('season', String(season));
+          url.searchParams.set('episode', String(episode));
+          window.history.replaceState(null, '', url.toString());
+        } catch {
+          /* ignore */
+        }
+        const stageEl = document.getElementById('watch') || document.querySelector('.fp-stage');
+        if (stageEl) {
+          const rect = stageEl.getBoundingClientRect();
+          if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            stageEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }
     },
     [setMenu, resetTried]
   );

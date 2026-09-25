@@ -43,6 +43,8 @@ interface Props {
   rating?: number | null;
   ratingBadge?: string;
   contentAdvisory?: string;
+  initialSeason?: number;
+  initialEpisode?: number;
 }
 
 const {
@@ -60,6 +62,8 @@ const {
   rating = null,
   ratingBadge,
   contentAdvisory,
+  initialSeason,
+  initialEpisode,
 } = Astro.props;
 ---
 
@@ -84,6 +88,8 @@ const {
     rating={rating ?? undefined}
     ratingBadge={ratingBadge}
     contentAdvisory={contentAdvisory}
+    initialSeason={initialSeason}
+    initialEpisode={initialEpisode}
   />
 </section>
 

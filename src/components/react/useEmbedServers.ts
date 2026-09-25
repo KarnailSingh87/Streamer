@@ -246,7 +246,6 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
     // A new title/episode is a clean slate for failover: a provider that could
     // not serve the previous episode may serve this one.
     tried.current = new Set();
-    setServer(null);
     setIsAuto(true);
 
     const cached = readCachedHealth(target);
@@ -258,6 +257,15 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
       setSelectionMs(0);
       return;
     }
+
+    // Do NOT blank out the server when switching episodes.
+    // Retain the current working server, or immediately set the best known server
+    // so the new episode begins loading right away without stalling on a blank screen.
+    setServer((prev) => {
+      if (prev) return prev;
+      const override = readServerOverride(overrideKeyRef.current);
+      return override || preferredRef.current || 'vidlink';
+    });
 
     const ac = new AbortController();
     void select(ac.signal);

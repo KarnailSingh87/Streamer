@@ -3099,14 +3099,20 @@
    unreachable ("can't press the server/play button because of the fullscreen
    button"). The provider's own chrome lives along the bottom bar and centre, so
    the top-right corner is the one reliably clear zone across all five players. */
-.fp-embed-screen-control {
+.fp-embed-screen-control,
+.fp-embed-back-control {
   position: absolute;
   top: 0.6rem;
-  right: 0.6rem;
   z-index: 7;
   pointer-events: none;
   opacity: 0;
   transition: opacity 180ms var(--fp-ease);
+}
+.fp-embed-screen-control {
+  right: 0.6rem;
+}
+.fp-embed-back-control {
+  left: 0.6rem;
 }
 /* Visibility is owned by PlayerShell (SCREEN_CTL_MS), NOT by :hover.
    `:hover` crosses into a cross-origin iframe — the parent document sees the
@@ -3114,7 +3120,8 @@
    screen for as long as the cursor rested anywhere on the video, and coarse
    pointers (which never hover) had it pinned on permanently. Both defeated the
    1s auto-hide. */
-.fp-embed-screen-control.is-visible {
+.fp-embed-screen-control.is-visible,
+.fp-embed-back-control.is-visible {
   opacity: 1;
 }
 /* Catches the tap that wakes the button on a touch screen: events inside the
