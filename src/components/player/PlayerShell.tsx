@@ -1139,6 +1139,7 @@ export default function PlayerShell({
                   updatePrefs({ autoplayNext: !prefs.autoplayNext })
                 }
                 onPip={requestPip}
+                onReload={onReload}
                 t={t}
               />
             </Popover>

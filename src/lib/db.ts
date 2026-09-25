@@ -17,11 +17,15 @@
 /**
  * Minimal database interface compatible with both Cloudflare D1 and the
  * libSQL/Turso wrapper (D1Like) returned by db-driver.ts. All db.ts functions
- * accept this type instead of the concrete DB so either driver works.
+ * accept this type instead of the concrete D1Database so either driver works.
  */
 export interface DB {
   prepare(sql: string): {
-    bind(...values: any[]): any;
+    bind(...values: any[]): {
+      first<T = unknown>(): Promise<T | null>;
+      all<T = unknown>(): Promise<{ results: T[] }>;
+      run(): Promise<{ success: boolean }>;
+    };
     first<T = unknown>(): Promise<T | null>;
     all<T = unknown>(): Promise<{ results: T[] }>;
     run(): Promise<{ success: boolean }>;
