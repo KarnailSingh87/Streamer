@@ -40,10 +40,7 @@ async function getDatabaseClient() {
 //   db.prepare(sql).bind(...args).run()        → { success: boolean }
 //   db.batch([stmt, stmt, ...])                → results[]
 
-interface D1Like {
-  prepare(sql: string): D1PreparedLike;
-  batch(stmts: D1PreparedLike[]): Promise<any[]>;
-}
+import type { DB } from './db';
 
 interface D1PreparedLike {
   bind(...values: any[]): D1PreparedLike;
@@ -55,7 +52,7 @@ interface D1PreparedLike {
   _params?: any[];
 }
 
-function createTursoD1Wrapper(client: any): D1Like {
+function createTursoD1Wrapper(client: any): DB {
   function makePrepared(sql: string): D1PreparedLike {
     let params: any[] = [];
 
@@ -141,7 +138,7 @@ function createTursoD1Wrapper(client: any): D1Like {
  * - On Cloudflare: returns `locals.runtime.env.DB` (native D1, zero overhead).
  * - On Render / Node / Vercel: returns a D1-compatible wrapper around libSQL / SQLite.
  */
-export async function getDB(locals: any): Promise<D1Like> {
+export async function getDB(locals: any): Promise<DB> {
   if (IS_CLOUDFLARE && locals?.runtime?.env?.DB) {
     // Cloudflare: direct D1 binding
     return locals.runtime.env.DB;
@@ -156,7 +153,7 @@ export async function getDB(locals: any): Promise<D1Like> {
  * Synchronous version for Cloudflare-only paths where the D1 binding is
  * guaranteed. Falls back to throwing on Node/Vercel (use getDB instead).
  */
-export function getDBSync(locals: any): D1Like {
+export function getDBSync(locals: any): DB {
   if (!IS_CLOUDFLARE || !locals?.runtime?.env?.DB) {
     throw new Error('getDBSync() is only available on Cloudflare. Use getDB() on Render / Node / Vercel.');
   }

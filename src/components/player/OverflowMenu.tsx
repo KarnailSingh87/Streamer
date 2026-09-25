@@ -56,6 +56,7 @@ interface OverflowMenuProps {
   onToggleAutoplayNext: () => void;
   onPip: () => void;
   onReload: () => void;
+  onOpenEpisodes: () => void;
   t: PlayerT;
 }
 
@@ -74,6 +75,7 @@ export default function OverflowMenu({
   onToggleAutoplayNext,
   onPip,
   onReload,
+  onOpenEpisodes,
   t,
 }: OverflowMenuProps) {
   return (

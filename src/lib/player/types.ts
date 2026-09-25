@@ -39,6 +39,7 @@ export type PlayerErrorKind =
   | 'drm' // protected content, no key system
   | 'geo' // provider refused for this region
   | 'notfound' // no source at all for this title
+  | 'playback' // provider's own player reported a playback error
   | 'aborted'
   | 'unknown';
 

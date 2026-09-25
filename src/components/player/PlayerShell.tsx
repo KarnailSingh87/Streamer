@@ -480,6 +480,8 @@ export default function PlayerShell({
         return t('errGeo');
       case 'notfound':
         return t('errNotFound');
+      case 'playback':
+        return t('errPlayback');
       default:
         return t('errUnknown');
     }
@@ -644,7 +646,7 @@ export default function PlayerShell({
             }}
             role="button"
             tabIndex={-1}
-            aria-label={t('togglePlayback')}
+            aria-label={t('play')}
             title="Click to toggle play/pause, double click for fullscreen"
           />
         )}
@@ -1023,8 +1025,7 @@ export default function PlayerShell({
             )}
 
             {/* Bottom-Center Transport Controls: [ ↺ 10 ] [ ▶ / || ] [ ↻ 10 ] */}
-            {engine !== 'embed' && (
-              <div className="fp-center-transport">
+            <div className="fp-center-transport">
                 {/* Rewind 10s */}
                 <button
                   type="button"
@@ -1060,7 +1061,6 @@ export default function PlayerShell({
                   <SkipIcon direction="forward" size={26} />
                 </button>
               </div>
-            )}
 
             {/* Menus popovers */}
             <Popover
@@ -1138,7 +1138,7 @@ export default function PlayerShell({
                 onToggleAutoplayNext={() =>
                   updatePrefs({ autoplayNext: !prefs.autoplayNext })
                 }
-                onRequestPip={requestPip}
+                onPip={requestPip}
                 t={t}
               />
             </Popover>

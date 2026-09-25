@@ -14,6 +14,21 @@
  * `wrangler d1 migrations apply streamer` — it is not applied at runtime.
  */
 
+/**
+ * Minimal database interface compatible with both Cloudflare D1 and the
+ * libSQL/Turso wrapper (D1Like) returned by db-driver.ts. All db.ts functions
+ * accept this type instead of the concrete DB so either driver works.
+ */
+export interface DB {
+  prepare(sql: string): {
+    bind(...values: any[]): any;
+    first<T = unknown>(): Promise<T | null>;
+    all<T = unknown>(): Promise<{ results: T[] }>;
+    run(): Promise<{ success: boolean }>;
+  };
+  batch(stmts: any[]): Promise<any[]>;
+}
+
 /** Generate a URL-safe random ID (24 chars) using WebCrypto (Workers-safe). */
 export function generateId(): string {
   const bytes = new Uint8Array(18);
@@ -34,15 +49,15 @@ export interface DBUser {
   created_at: string;
 }
 
-export async function getUserByGoogleId(db: D1Database, googleId: string): Promise<DBUser | null> {
+export async function getUserByGoogleId(db: DB, googleId: string): Promise<DBUser | null> {
   return await db.prepare('SELECT * FROM users WHERE google_id = ?').bind(googleId).first<DBUser>();
 }
 
-export async function getUserById(db: D1Database, id: string): Promise<DBUser | null> {
+export async function getUserById(db: DB, id: string): Promise<DBUser | null> {
   return await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<DBUser>();
 }
 
-export async function createUser(db: D1Database, data: Omit<DBUser, 'id' | 'created_at'>): Promise<DBUser> {
+export async function createUser(db: DB, data: Omit<DBUser, 'id' | 'created_at'>): Promise<DBUser> {
   const id = generateId();
   await db
     .prepare('INSERT INTO users (id, google_id, email, name, avatar_url) VALUES (?, ?, ?, ?, ?)')
@@ -51,7 +66,7 @@ export async function createUser(db: D1Database, data: Omit<DBUser, 'id' | 'crea
   return (await getUserById(db, id))!;
 }
 
-export async function upsertUser(db: D1Database, data: Omit<DBUser, 'id' | 'created_at'>): Promise<DBUser> {
+export async function upsertUser(db: DB, data: Omit<DBUser, 'id' | 'created_at'>): Promise<DBUser> {
   const existing = await getUserByGoogleId(db, data.google_id);
   if (existing) {
     await db
@@ -71,7 +86,7 @@ export interface DBSession {
   expires_at: number; // unix seconds
 }
 
-export async function createSession(db: D1Database, userId: string): Promise<DBSession> {
+export async function createSession(db: DB, userId: string): Promise<DBSession> {
   const id = generateId();
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30; // 30 days
   await db
@@ -82,7 +97,7 @@ export async function createSession(db: D1Database, userId: string): Promise<DBS
 }
 
 export async function getSession(
-  db: D1Database,
+  db: DB,
   sessionId: string
 ): Promise<(DBSession & { user: DBUser }) | null> {
   const now = Math.floor(Date.now() / 1000);
@@ -120,16 +135,16 @@ export async function getSession(
   };
 }
 
-export async function deleteSession(db: D1Database, sessionId: string): Promise<void> {
+export async function deleteSession(db: DB, sessionId: string): Promise<void> {
   await db.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionId).run();
 }
 
-export async function deleteAllUserSessions(db: D1Database, userId: string): Promise<void> {
+export async function deleteAllUserSessions(db: DB, userId: string): Promise<void> {
   await db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(userId).run();
 }
 
 /** Refresh session expiry (rolling session). */
-export async function refreshSession(db: D1Database, sessionId: string): Promise<void> {
+export async function refreshSession(db: DB, sessionId: string): Promise<void> {
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30;
   await db.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').bind(expiresAt, sessionId).run();
 }
@@ -146,7 +161,7 @@ export interface DBProfile {
   created_at: string;
 }
 
-export async function getProfilesByUserId(db: D1Database, userId: string): Promise<DBProfile[]> {
+export async function getProfilesByUserId(db: DB, userId: string): Promise<DBProfile[]> {
   const { results } = await db
     .prepare('SELECT * FROM profiles WHERE user_id = ? ORDER BY is_default DESC, created_at ASC')
     .bind(userId)
@@ -154,12 +169,12 @@ export async function getProfilesByUserId(db: D1Database, userId: string): Promi
   return results;
 }
 
-export async function getProfileById(db: D1Database, id: string): Promise<DBProfile | null> {
+export async function getProfileById(db: DB, id: string): Promise<DBProfile | null> {
   return await db.prepare('SELECT * FROM profiles WHERE id = ?').bind(id).first<DBProfile>();
 }
 
 export async function createProfile(
-  db: D1Database,
+  db: DB,
   data: Omit<DBProfile, 'id' | 'created_at'>
 ): Promise<DBProfile> {
   const existing = await getProfilesByUserId(db, data.user_id);
@@ -175,7 +190,7 @@ export async function createProfile(
 }
 
 export async function updateProfile(
-  db: D1Database,
+  db: DB,
   id: string,
   data: Partial<Pick<DBProfile, 'name' | 'avatar_color' | 'is_kids'>>
 ): Promise<void> {
@@ -189,11 +204,11 @@ export async function updateProfile(
   await db.prepare(`UPDATE profiles SET ${fields.join(', ')} WHERE id = ?`).bind(...vals).run();
 }
 
-export async function deleteProfile(db: D1Database, id: string): Promise<void> {
+export async function deleteProfile(db: DB, id: string): Promise<void> {
   await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
 }
 
-export async function setDefaultProfile(db: D1Database, userId: string, profileId: string): Promise<void> {
+export async function setDefaultProfile(db: DB, userId: string, profileId: string): Promise<void> {
   // D1 batch runs statements atomically (single transaction).
   await db.batch([
     db.prepare('UPDATE profiles SET is_default = 0 WHERE user_id = ?').bind(userId),
@@ -213,7 +228,7 @@ export interface DBWatchlistEntry {
   added_at: string;
 }
 
-export async function getWatchlist(db: D1Database, profileId: string): Promise<DBWatchlistEntry[]> {
+export async function getWatchlist(db: DB, profileId: string): Promise<DBWatchlistEntry[]> {
   const { results } = await db
     .prepare('SELECT * FROM watchlist WHERE profile_id = ? ORDER BY added_at DESC')
     .bind(profileId)
@@ -222,7 +237,7 @@ export async function getWatchlist(db: D1Database, profileId: string): Promise<D
 }
 
 export async function isInWatchlist(
-  db: D1Database,
+  db: DB,
   profileId: string,
   tmdbId: number,
   mediaType: 'movie' | 'tv'
@@ -235,7 +250,7 @@ export async function isInWatchlist(
 }
 
 export async function addToWatchlist(
-  db: D1Database,
+  db: DB,
   profileId: string,
   tmdbId: number,
   mediaType: 'movie' | 'tv',
@@ -250,7 +265,7 @@ export async function addToWatchlist(
 }
 
 export async function removeFromWatchlist(
-  db: D1Database,
+  db: DB,
   profileId: string,
   tmdbId: number,
   mediaType: 'movie' | 'tv'
@@ -274,7 +289,7 @@ export interface DBRating {
 }
 
 export async function getRating(
-  db: D1Database,
+  db: DB,
   profileId: string,
   tmdbId: number,
   mediaType: 'movie' | 'tv'
@@ -287,7 +302,7 @@ export async function getRating(
 }
 
 export async function setRating(
-  db: D1Database,
+  db: DB,
   profileId: string,
   tmdbId: number,
   mediaType: 'movie' | 'tv',
@@ -305,7 +320,7 @@ export async function setRating(
 }
 
 export async function deleteRating(
-  db: D1Database,
+  db: DB,
   profileId: string,
   tmdbId: number,
   mediaType: 'movie' | 'tv'
@@ -325,7 +340,7 @@ const SESSION_COOKIE = 'streamer_session';
  * Returns null if no valid session is found.
  */
 export async function getSessionFromRequest(
-  db: D1Database,
+  db: DB,
   request: Request
 ): Promise<(DBSession & { user: DBUser }) | null> {
   const cookieHeader = request.headers.get('cookie') ?? '';

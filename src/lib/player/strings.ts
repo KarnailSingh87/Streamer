@@ -24,7 +24,7 @@ export type PlayerStringKey =
   | 'upNext' | 'nextEpisode' | 'prevEpisode' | 'episodes' | 'season' | 'episode' | 'noEpisodes'
   | 'playingInSeconds' | 'startingNow'
   | 'loading' | 'buffering' | 'slowNetwork' | 'offline'
-  | 'errNetwork' | 'errUnsupported' | 'errDecode' | 'errDrm' | 'errGeo' | 'errNotFound' | 'errUnknown'
+  | 'errNetwork' | 'errUnsupported' | 'errDecode' | 'errDrm' | 'errGeo' | 'errNotFound' | 'errPlayback' | 'errUnknown'
   | 'seek' | 'forward10' | 'back10'
   | 'statePaused' | 'statePlaying' | 'stateMuted' | 'stateUnmuted' | 'stateEnded'
   | 'servers' | 'server' | 'trailer' | 'fullTitle' | 'shortcuts' | 'gestures'
@@ -62,6 +62,7 @@ const en: Dict = {
   errDrm: 'This title is protected and cannot be played here.',
   errGeo: 'This title is not available in your region.',
   errNotFound: 'No playable source was found for this title.',
+  errPlayback: 'Playback failed — the server could not play this title.',
   errUnknown: 'Playback stopped unexpectedly.',
   seek: 'Seek', forward10: 'Forward 10 seconds', back10: 'Back 10 seconds',
   statePaused: 'Paused', statePlaying: 'Playing', stateMuted: 'Muted', stateUnmuted: 'Sound on',
@@ -113,6 +114,7 @@ const hi: Partial<Dict> = {
   errDrm: 'यह टाइटल सुरक्षित है और यहाँ नहीं चल सकता।',
   errGeo: 'यह टाइटल आपके क्षेत्र में उपलब्ध नहीं है।',
   errNotFound: 'इस टाइटल के लिए कोई स्रोत नहीं मिला।',
+  errPlayback: 'प्लेबैक विफल — सर्वर इस टाइटल को नहीं चला सका।',
   errUnknown: 'प्लेबैक अचानक रुक गया।',
   seek: 'सीक', forward10: '10 सेकंड आगे', back10: '10 सेकंड पीछे',
   statePaused: 'रुका हुआ', statePlaying: 'चल रहा है', stateMuted: 'म्यूट', stateUnmuted: 'आवाज़ चालू',
@@ -163,6 +165,7 @@ const ja: Partial<Dict> = {
   errDrm: 'この作品は保護されており再生できません。',
   errGeo: 'この作品はお住まいの地域では利用できません。',
   errNotFound: '再生可能なソースが見つかりませんでした。',
+  errPlayback: '再生に失敗しました — サーバーがこのタイトルを再生できませんでした。',
   errUnknown: '再生が予期せず停止しました。',
   seek: 'シーク', forward10: '10秒進む', back10: '10秒戻る',
   statePaused: '一時停止', statePlaying: '再生中', stateMuted: 'ミュート', stateUnmuted: '音声オン',
