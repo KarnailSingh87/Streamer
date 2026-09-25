@@ -187,13 +187,6 @@ export class EmbedAdapter implements PlayerAdapter {
     frame.setAttribute('webkitallowfullscreen', 'true');
     frame.setAttribute('mozallowfullscreen', 'true');
     frame.allowFullscreen = true;
-    // Strict sandbox to prevent third-party popups, redirects, or new tabs from opening.
-    // allow-scripts, allow-same-origin, allow-forms, allow-presentation are granted for full video playback,
-    // while allow-popups and allow-top-navigation are strictly omitted to block adware, redirects, and popups.
-    frame.setAttribute(
-      'sandbox',
-      'allow-scripts allow-same-origin allow-forms allow-presentation'
-    );
 
     frame.addEventListener('load', () => {
       window.clearTimeout(this.loadTimer);
