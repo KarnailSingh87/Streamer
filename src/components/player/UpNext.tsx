@@ -12,7 +12,7 @@
 // • Cancel is a real button with a label, and Escape triggers it too, because a
 //   prompt that steals the next action must be dismissible without aim.
 // • The card is focusable and announced politely, so a screen reader user hears
-//   "Up next … playing in 8 seconds" instead of silently jumping episodes.
+//   "Up next … playing in 5 seconds" instead of silently jumping episodes.
 
 import { useEffect, useRef, useState } from 'react';
 import { NextIcon, CloseIcon } from './Icons';

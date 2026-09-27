@@ -34,12 +34,13 @@ import type {
   PlayerSource,
   TimeMarker,
 } from '../../lib/player/types';
-import { getContinueEntry, saveContinueWatching } from '../../lib/continueWatching';
+import { getContinueEntry, removeContinueWatching, saveContinueWatching } from '../../lib/continueWatching';
+import { formatTime } from '../../lib/player/format';
 
 /** Seconds of credits left when the Up Next prompt appears. */
 const UPNEXT_LEAD_SECONDS = 30;
 /** Countdown before auto-advancing once a title actually ends. */
-const AUTOPLAY_COUNTDOWN = 8;
+const AUTOPLAY_COUNTDOWN = 5;
 /** Ignore a resume offer this close to the start or the end. */
 const RESUME_MIN = 15;
 const RESUME_TAIL = 60;
@@ -454,6 +455,44 @@ export default function WatchNow({
 
   const { snapshot, caps, setMenu, prefs } = api;
 
+  // ── "Resuming at 14:20" ───────────────────────────────────────────────────
+  // The resume position is applied by the engine the moment the source mounts,
+  // which is *before* there is anything on screen to explain it — the picture
+  // simply appears part-way in. This announces it once playback is genuinely
+  // under way, so the viewer knows the video did not skip ahead on its own.
+  //
+  // A one-shot ref, not a cleared `resumeAt`: the value stays put because the
+  // splash title still reads from it (see splashTitle), and a failover or a
+  // re-render must not re-announce a badge the viewer has already seen.
+  // `playEpisode` sets `resumeAt` back to null, so the next episode starts clean.
+  const resumeAnnounced = useRef(false);
+  useEffect(() => {
+    if (resumeAnnounced.current || !resumeAt) return;
+    if (snapshot.status !== 'playing') return;
+    resumeAnnounced.current = true;
+    showToast(t('resumingAt', { time: formatTime(resumeAt) }));
+  }, [snapshot.status, resumeAt, showToast, t]);
+
+  // ── Completion ────────────────────────────────────────────────────────────
+  // A finished title is not "in progress", so its saved position is dropped:
+  // otherwise it sits in Continue Watching forever with a stale timestamp, the
+  // resume offer is declined (it is inside the RESUME_TAIL window) and the
+  // splash advertises a position that no longer means anything. Clearing it
+  // returns the title to its detail page as fresh.
+  //
+  // Only at the end of the line. Finishing S1E4 of a series is not finishing the
+  // series, and dropping the entry there would pull the title out of Continue
+  // Watching for the whole 5s of the up-next countdown before the next episode's
+  // first progress pulse puts it back. A movie has no next episode, so it always
+  // clears here.
+  const clearedOnEnd = useRef('');
+  useEffect(() => {
+    if (!endedFlag || neighbours.next) return;
+    if (clearedOnEnd.current === sourceKey) return;
+    clearedOnEnd.current = sourceKey;
+    removeContinueWatching(Number(numericId), mediaType);
+  }, [endedFlag, neighbours.next, sourceKey, numericId, mediaType]);
+
   // Any message from a provider frame is proof it is alive for this title —
   // stronger evidence than the backend probe can get. It is also a real success
   // for the reliability ledger, which is what makes tomorrow's automatic pick
@@ -803,12 +842,17 @@ export default function WatchNow({
                   neighbours.prev && playEpisode(neighbours.prev.season, neighbours.prev.episode),
                 onNext: () =>
                   neighbours.next && playEpisode(neighbours.next.season, neighbours.next.episode),
-                onOpenEpisodes: () => undefined,
+                onOpenEpisodes: () => setMenu('episodes'),
               }
             : null
         }
         episodesPanel={episodesPanel}
         upNext={upNextNode}
+        // The picture shrinks into a corner window only while it is still playing
+        // behind the prompt (i.e. the credits are rolling). Once the title has
+        // actually ended the end card owns the stage, and a shrunken video next
+        // to it would just be clutter.
+        upNextShrink={showUpNext && nearEnd}
         endCard={endCardNode}
         toast={toast}
         optimizing={selecting || (engine === 'embed' && started && !server && !exhausted)}

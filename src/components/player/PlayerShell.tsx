@@ -124,6 +124,14 @@ export interface PlayerShellProps {
   episodesPanel?: ReactNode;
   /** Up-next prompt (series, near/after the end). */
   upNext?: ReactNode;
+  /**
+   * Shrink the picture into a corner window while the up-next prompt is up.
+   *
+   * Separate from `upNext` because the two do not coincide: the prompt also
+   * renders after the title has ended, when the end card owns the stage and a
+   * shrunken video beside it is only clutter.
+   */
+  upNextShrink?: boolean;
   /** End card (video finished). */
   endCard?: ReactNode;
   /** Extra note under the stage (e.g. the volume-relay explanation). */
@@ -174,6 +182,7 @@ export default function PlayerShell({
   episodeNav,
   episodesPanel,
   upNext,
+  upNextShrink = false,
   endCard,
   notice,
   toast,
@@ -233,11 +242,11 @@ export default function PlayerShell({
    *
    * Decided by GEOMETRY, not by :hover / pointerenter: the control bar is
    * `pointer-events: none` while hidden, so a cursor parked where the bar is
-   * about to appear never raises an enter event — with a 1s idle timeout that
-   * meant the bar faded out from under a stationary cursor and only came back on
-   * the next mouse move. Testing the pointer against the interactive rows (seek
-   * bar + button row, not the transparent scrim) fixes it for any pointer that
-   * can hover, and touch is ignored because a finger does not rest anywhere.
+   * about to appear never raises an enter event — the bar would fade out from
+   * under a stationary cursor and only come back on the next mouse move.
+   * Testing the pointer against the interactive rows (seek bar + button row, not
+   * the transparent scrim) fixes it for any pointer that can hover, and touch is
+   * ignored because a finger does not rest anywhere.
    */
   const trackPointerHold = useCallback(
     (event: { clientX: number; clientY: number; pointerType?: string }) => {
@@ -714,8 +723,23 @@ export default function PlayerShell({
         onClick={containPointer}
         onDoubleClick={containPointer}
       >
-        {/* Engine surface. The adapter appends <video> / <iframe> here. */}
-        <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
+        {/* Engine surface, inside a sizing wrapper.
+            The wrapper exists so the up-next prompt can shrink the picture into a
+            corner window. It has to be a wrapper rather than a class on
+            `.fp-surface` itself, because the surface's geometry is set inline from
+            `surfaceStyle` (a `transform` for html5, width/height/offsets for the
+            cross-origin engines) and an inline value beats any stylesheet rule.
+            Absorbing the shrink here leaves that geometry untouched and correct
+            inside whatever box we hand it — see .fp-pip in player.css.
+
+            Not applied on compact layouts. There the stage is a 16:9 letterbox
+            (a 390px-wide phone gets a stage 219px tall), and a corner window
+            plus the countdown card simply do not both fit: stacking them pushes
+            the window off the top of the picture. On a phone the countdown
+            belongs over the full frame, which is what Netflix does there too. */}
+        <div className={`fp-pip${upNextShrink && !compact ? ' is-shrunk' : ''}`}>
+          <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
+        </div>
 
         {/* Pre-play splash. The play control is a real button, so Enter/Space
         {/* Wake layer, third-party embed only, and only while our chrome is
@@ -1143,6 +1167,38 @@ export default function PlayerShell({
                     title={t('nextEpisode')}
                   >
                     <NextIcon size={22} />
+                  </button>
+                )}
+
+                {/* Episode drawer. Skipped in compact, where the overflow sheet
+                    already carries the same action (OverflowMenu → Episodes) and the
+                    bar has no room for a third secondary control. */}
+                {episodesPanel && !compact && (
+                  <button
+                    ref={episodesBtn}
+                    type="button"
+                    className={`fp-btn fp-top-btn fp-episodes-btn${menu === 'episodes' ? ' is-open' : ''}`}
+                    onClick={() => setMenu(menu === 'episodes' ? null : 'episodes')}
+                    aria-label={t('episodes')}
+                    title={t('episodes')}
+                  >
+                    <EpisodesIcon size={22} />
+                  </button>
+                )}
+
+                {/* Playback speed. Gated on `caps.rate` for the same reason as the
+                    overflow sheet: on the third-party embed engine the rate cannot
+                    be set, so offering the control would be a lie. */}
+                {caps.rate && !compact && (
+                  <button
+                    ref={speedBtn}
+                    type="button"
+                    className={`fp-btn fp-top-btn${menu === 'speed' ? ' is-open' : ''}`}
+                    onClick={() => setMenu(menu === 'speed' ? null : 'speed')}
+                    aria-label={t('speed')}
+                    title={t('speed')}
+                  >
+                    <SpeedIcon size={22} />
                   </button>
                 )}
 

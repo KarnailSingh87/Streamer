@@ -22,7 +22,7 @@ export type PlayerStringKey =
   | 'subtitleSize' | 'subtitleBackdrop' | 'small' | 'medium' | 'large'
   | 'skipIntro' | 'skipRecap' | 'skipCredits'
   | 'upNext' | 'nextEpisode' | 'prevEpisode' | 'episodes' | 'season' | 'episode' | 'noEpisodes'
-  | 'playingInSeconds' | 'startingNow'
+  | 'playingInSeconds' | 'startingNow' | 'resumingAt'
   | 'loading' | 'buffering' | 'slowNetwork' | 'offline'
   | 'errNetwork' | 'errUnsupported' | 'errDecode' | 'errDrm' | 'errGeo' | 'errNotFound' | 'errPlayback' | 'errUnknown'
   | 'seek' | 'forward10' | 'back10'
@@ -54,6 +54,7 @@ const en: Dict = {
   noEpisodes: 'No episodes listed for this season yet.',
   episodes: 'Episodes', season: 'Season', episode: 'Episode',
   playingInSeconds: 'Playing in {n}s', startingNow: 'Starting…',
+  resumingAt: 'Resuming at {time}',
   loading: 'Loading', buffering: 'Buffering', slowNetwork: 'Slow connection — lowering quality',
   errNetwork: 'Connection lost while loading the video.',
   errUnsupported: 'This browser cannot play this video format.',
@@ -103,6 +104,7 @@ const hi: Partial<Dict> = {
   noEpisodes: 'इस सीज़न के एपिसोड अभी उपलब्ध नहीं हैं।',
   episodes: 'एपिसोड', season: 'सीज़न', episode: 'एपिसोड',
   playingInSeconds: '{n} सेकंड में चलेगा', startingNow: 'शुरू हो रहा है…',
+  resumingAt: '{time} से फिर शुरू हो रहा है',
   loading: 'लोड हो रहा है', buffering: 'बफ़र हो रहा है', slowNetwork: 'धीमा कनेक्शन — क्वालिटी घटाई जा रही है',
   errNetwork: 'वीडियो लोड करते समय कनेक्शन टूट गया।',
   errUnsupported: 'यह ब्राउज़र इस वीडियो फ़ॉर्मैट को नहीं चला सकता।',
@@ -151,6 +153,7 @@ const ja: Partial<Dict> = {
   noEpisodes: 'このシーズンのエピソードはまだありません。',
   episodes: 'エピソード', season: 'シーズン', episode: 'エピソード',
   playingInSeconds: '{n}秒後に再生', startingNow: '開始中…',
+  resumingAt: '{time} から再開します',
   loading: '読み込み中', buffering: 'バッファ中', slowNetwork: '通信が遅いため画質を下げています',
   errNetwork: '読み込み中に接続が切断されました。',
   errUnsupported: 'このブラウザーはこの形式を再生できません。',
@@ -195,6 +198,7 @@ const fr: Partial<Dict> = {
   noEpisodes: 'Aucun épisode listé pour cette saison.',
   episodes: 'Épisodes', season: 'Saison', episode: 'Épisode',
   playingInSeconds: 'Lecture dans {n}s', startingNow: 'Démarrage…',
+  resumingAt: 'Reprise à {time}',
   loading: 'Chargement', buffering: 'Mise en mémoire tampon', slowNetwork: 'Connexion lente — qualité réduite',
   errNetwork: 'Connexion perdue pendant le chargement.',
   errUnsupported: 'Ce navigateur ne peut pas lire ce format.',
@@ -238,6 +242,7 @@ const es: Partial<Dict> = {
   noEpisodes: 'Aún no hay episodios para esta temporada.',
   episodes: 'Episodios', season: 'Temporada', episode: 'Episodio',
   playingInSeconds: 'Se reproduce en {n}s', startingNow: 'Iniciando…',
+  resumingAt: 'Reanudando en {time}',
   loading: 'Cargando', buffering: 'Almacenando en búfer', slowNetwork: 'Conexión lenta — bajando la calidad',
   errNetwork: 'Se perdió la conexión durante la carga.',
   errUnsupported: 'Este navegador no puede reproducir este formato.',
@@ -282,6 +287,7 @@ const de: Partial<Dict> = {
   noEpisodes: 'Für diese Staffel sind noch keine Folgen gelistet.',
   episodes: 'Folgen', season: 'Staffel', episode: 'Folge',
   playingInSeconds: 'Start in {n}s', startingNow: 'Startet…',
+  resumingAt: 'Fortsetzung bei {time}',
   loading: 'Wird geladen', buffering: 'Puffern', slowNetwork: 'Langsame Verbindung – Qualität reduziert',
   errNetwork: 'Verbindung beim Laden verloren.',
   errUnsupported: 'Dieser Browser kann das Format nicht abspielen.',
@@ -326,6 +332,7 @@ const pt: Partial<Dict> = {
   noEpisodes: 'Ainda sem episódios para esta temporada.',
   episodes: 'Episódios', season: 'Temporada', episode: 'Episódio',
   playingInSeconds: 'A iniciar em {n}s', startingNow: 'A iniciar…',
+  resumingAt: 'A retomar em {time}',
   loading: 'A carregar', buffering: 'A colocar em buffer', slowNetwork: 'Ligação lenta — a reduzir a qualidade',
   errNetwork: 'Ligação perdida durante o carregamento.',
   errUnsupported: 'Este navegador não reproduz este formato.',
@@ -370,6 +377,7 @@ const ko: Partial<Dict> = {
   noEpisodes: '이 시즌의 회차가 아직 없습니다.',
   episodes: '회차', season: '시즌', episode: '회차',
   playingInSeconds: '{n}초 후 재생', startingNow: '시작 중…',
+  resumingAt: '{time}부터 이어서 재생',
   loading: '불러오는 중', buffering: '버퍼링 중', slowNetwork: '연결이 느려 화질을 낮춥니다',
   errNetwork: '불러오는 중 연결이 끊어졌습니다.',
   errUnsupported: '이 브라우저는 이 형식을 재생할 수 없습니다.',
@@ -414,6 +422,7 @@ const zh: Partial<Dict> = {
   noEpisodes: '本季暂无剧集。',
   episodes: '剧集', season: '季', episode: '集',
   playingInSeconds: '{n} 秒后播放', startingNow: '正在开始…',
+  resumingAt: '从 {time} 继续观看',
   loading: '加载中', buffering: '缓冲中', slowNetwork: '网络较慢 — 正在降低画质',
   errNetwork: '加载时连接中断。',
   errUnsupported: '此浏览器无法播放该格式。',

@@ -86,6 +86,40 @@
   cursor: none;
 }
 
+/* Picture box the engine surface lives in.
+   Normally transparent and exactly the size of the stage; during the up-next
+   countdown it becomes the small window in the bottom-left corner, so the
+   credits keep rolling next to the prompt instead of being covered by it.
+
+   The geometry change is deliberately NOT transitioned. Animating it would mean
+   either a `transform` — which WebKit/iOS frequently fails to repaint for a
+   cross-origin frame, the exact bug `surfaceStyle` works around above — or
+   animating width/height, which visibly squashes the picture mid-flight because
+   the video stretches to its box. Snapping is instant, correct on every engine,
+   and leaves only the chrome (radius, shadow) to ease. */
+.fp-pip {
+  position: absolute;
+  inset: 0;
+  transition:
+    border-radius 260ms var(--fp-ease),
+    box-shadow 260ms var(--fp-ease);
+}
+
+.fp-pip.is-shrunk {
+  inset: auto;
+  left: max(1rem, env(safe-area-inset-left));
+  /* Sits on the same baseline as .fp-upnext, so the window and the countdown
+     read as one row rather than two floating objects. */
+  bottom: calc(var(--fp-bar-h) + 3rem);
+  width: min(34%, 20rem);
+  aspect-ratio: 16 / 9;
+  border-radius: 0.6rem;
+  border: 1px solid var(--fp-panel-border);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.6);
+  /* Clips the letterboxed picture to the rounded window. */
+  overflow: hidden;
+}
+
 .fp-surface {
   position: absolute;
   inset: 0;
@@ -2704,6 +2738,13 @@
 [dir='rtl'] .fp-upnext {
   right: auto;
   left: max(1rem, env(safe-area-inset-left));
+}
+
+/* The prompt mirrors to the left in RTL, so the corner window has to mirror too
+   or the two land on top of each other. */
+[dir='rtl'] .fp-pip.is-shrunk {
+  left: auto;
+  right: max(1rem, env(safe-area-inset-right));
 }
 
 [dir='rtl'] .fp-skip-marker {

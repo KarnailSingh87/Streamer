@@ -48,15 +48,15 @@ import type { PlayerT } from '../../lib/player/strings';
 
 /**
  * Idle delay before the control bar (volume, captions, full screen, everything)
- * fades. 1s by product decision — much snappier than Netflix's ~3s, so the
- * picture is clear almost immediately after the viewer stops moving.
+ * and the cursor fade out. 3s, matching Netflix: long enough that a viewer who
+ * reaches for a drink does not lose the chrome, short enough that the picture
+ * is still the dominant thing on screen.
  *
- * At this speed one extra rule is essential: resting the cursor ON the control
- * bar must not make it disappear from under the pointer. `chromeHover` below
- * holds it open for as long as the pointer is over the chrome, alongside the
- * existing holds for paused / buffering / ended / offline / scrubbing / open menu.
+ * Independently of this delay, `chromeHover` below holds the bar open for as
+ * long as the pointer is over the chrome, alongside the existing holds for
+ * paused / buffering / ended / offline / scrubbing / open menu.
  */
-const IDLE_MS = 1000;
+const IDLE_MS = 3000;
 /** Rapid play/pause taps inside this window collapse into one command. */
 const TOGGLE_DEBOUNCE_MS = 220;
 /** Seconds for the skip buttons and ←/→ keys. */
