@@ -61,10 +61,14 @@ export interface ServerQuality {
  * renditions for different titles; option 1 is a usable approximation.
  */
 export const SERVER_QUALITY: Readonly<Record<string, ServerQuality>> = {
-  nexstream: { maxHeight: null, bitrateKbps: null },
+  autoembed: { maxHeight: 1080, bitrateKbps: null, label: '1080p' },
+  vidsrc: { maxHeight: 1080, bitrateKbps: null, label: '1080p' },
+  vidsrcin: { maxHeight: null, bitrateKbps: null },
+  twoembed: { maxHeight: 1080, bitrateKbps: null, label: '1080p' },
   vidlink: { maxHeight: null, bitrateKbps: null },
-  videasy: { maxHeight: null, bitrateKbps: null },
   vidfast: { maxHeight: null, bitrateKbps: null },
+  videasy: { maxHeight: null, bitrateKbps: null },
+  nexstream: { maxHeight: null, bitrateKbps: null },
 };
 
 /** Quality for a server id, always defined so callers need no null checks. */
@@ -85,16 +89,20 @@ export function qualityFor(id: string): ServerQuality {
 // waiting for the (advisory, often-throttled) probe to answer.
 //
 // LOWER = preferred. Maintainer-curated and safe to re-tune as providers change:
-//   vidlink, vidfast — leanest players, sandbox-friendly, the fewest pop-ups.
-//   videasy          — reliable, a little heavier.
-//   nexstream        — plays, but the heaviest ad wrapper of the four.
+//   autoembed, vidsrc — fastest, most reliable multi-source streams.
+//   twoembed, vidlink — fast backup streams.
+//   vidfast, videasy, nexstream — fallback mirrors.
 // Unknown ids fall to PREFERENCE_MAX so a provider we have not vetted never
 // outranks a vetted one just by being unlisted.
 export const PROVIDER_PREFERENCE: Readonly<Record<string, number>> = {
-  vidlink: 0,
-  vidfast: 1,
-  videasy: 2,
-  nexstream: 3,
+  vidsrcin: 0,
+  autoembed: 0,
+  vidsrc: 1,
+  twoembed: 2,
+  vidlink: 3,
+  vidfast: 4,
+  videasy: 5,
+  nexstream: 6,
 };
 
 const PREFERENCE_MAX = 99;

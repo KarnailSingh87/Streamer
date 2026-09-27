@@ -112,10 +112,14 @@ const EDGE_RETRIES = 1;
 // Origin only, by design: enough to test the network path, not enough to build a
 // player URL (that stays server-side in src/lib/embed.ts, along with the key).
 const PROVIDER_ORIGIN: Readonly<Record<string, string>> = {
+  autoembed: 'https://autoembed.co',
+  vidsrc: 'https://vidsrc.pm',
+  vidsrcin: 'https://vidsrc.pm',
+  twoembed: 'https://www.2embed.cc',
   vidlink: 'https://vidlink.pro',
-  videasy: 'https://player.videasy.net',
-  vidfast: 'https://vidfast.pro',
-  nexstream: 'https://www.vidking.net',
+  vidfast: 'https://vidfast.vc',
+  videasy: 'https://player.autoembed.cc',
+  nexstream: 'https://www.2embed.cc',
 };
 
 /**
@@ -129,10 +133,13 @@ export const KNOWN_SERVERS: ReadonlyArray<{
   label: string;
   confidence: 'title' | 'live';
 }> = [
-  { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 1', confidence: 'title' },
-  { id: 'vidfast', name: 'VidFast', label: 'Server 2', confidence: 'live' },
-  { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 3', confidence: 'live' },
-  { id: 'nexstream', name: 'NexStream', label: 'Server 4', confidence: 'title' },
+  { id: 'autoembed', name: 'AutoEmbed (Multi-Source HD)', label: 'Server 1', confidence: 'live' },
+  { id: 'vidsrc', name: 'VidSrc (Pro HD)', label: 'Server 2', confidence: 'title' },
+  { id: 'twoembed', name: '2Embed (Cloud HD)', label: 'Server 3', confidence: 'live' },
+  { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 4', confidence: 'title' },
+  { id: 'vidfast', name: 'VidFast', label: 'Server 5', confidence: 'live' },
+  { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 6', confidence: 'live' },
+  { id: 'nexstream', name: 'NexStream', label: 'Server 7', confidence: 'title' },
 ];
 
 /** A list with no evidence attached. Never empty, so the UI always has options. */

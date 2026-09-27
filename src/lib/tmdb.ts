@@ -972,7 +972,7 @@ export async function buildHeroSlides(
         rating: Math.round(item.vote_average * 10) / 10,
         genres: (item.genre_ids ?? []).map((id) => genreNames[id]).filter(Boolean).slice(0, 3),
         runtime: null,
-        href: isMovie ? `/movie/${item.id}` : `/series/${item.id}`,
+        href: isMovie ? `/movie/${item.id}?play=1#watch` : `/series/${item.id}?play=1#watch`,
       } satisfies HeroSlide;
     });
 }

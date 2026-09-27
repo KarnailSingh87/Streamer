@@ -48,7 +48,14 @@ export const IMG_BASE_LG = 'https://image.tmdb.org/t/p/w780';
 const ACCENT = 'e50914';
 
 /** Identifier for a streaming server/source. */
-export type EmbedServerId = 'nexstream' | 'vidlink' | 'videasy' | 'vidfast';
+export type EmbedServerId =
+  | 'autoembed'
+  | 'vidsrc'
+  | 'twoembed'
+  | 'vidlink'
+  | 'vidfast'
+  | 'videasy'
+  | 'nexstream';
 
 /** How trustworthy a provider's availability probe can be. */
 export type ProbeConfidence = 'title' | 'live';
@@ -69,10 +76,13 @@ export const EMBED_SERVER_META: ReadonlyArray<{
   label: string;
   confidence: ProbeConfidence;
 }> = [
-  { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 1', confidence: 'title' },
-  { id: 'vidfast', name: 'VidFast', label: 'Server 2', confidence: 'live' },
-  { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 3', confidence: 'live' },
-  { id: 'nexstream', name: 'NexStream', label: 'Server 4', confidence: 'title' },
+  { id: 'autoembed', name: 'AutoEmbed (Multi-Source HD)', label: 'Server 1', confidence: 'live' },
+  { id: 'vidsrc', name: 'VidSrc (Pro HD)', label: 'Server 2', confidence: 'title' },
+  { id: 'twoembed', name: '2Embed (Cloud HD)', label: 'Server 3', confidence: 'live' },
+  { id: 'vidlink', name: 'VidLink (Fast HD)', label: 'Server 4', confidence: 'title' },
+  { id: 'vidfast', name: 'VidFast', label: 'Server 5', confidence: 'live' },
+  { id: 'videasy', name: 'Videasy (Multi-Source)', label: 'Server 6', confidence: 'live' },
+  { id: 'nexstream', name: 'NexStream', label: 'Server 7', confidence: 'title' },
 ];
 
 const VALID_SERVERS = new Set<string>(EMBED_SERVER_META.map((s) => s.id));
@@ -86,7 +96,9 @@ const VALID_SERVERS = new Set<string>(EMBED_SERVER_META.map((s) => s.id));
  * the caller falls back to the best available server.
  */
 export function normalizeServer(server: string | null | undefined): EmbedServerId | null {
-  return server && VALID_SERVERS.has(server) ? (server as EmbedServerId) : null;
+  if (!server) return null;
+  if (server === 'vidsrcin') return 'vidsrc';
+  return VALID_SERVERS.has(server) ? (server as EmbedServerId) : null;
 }
 
 /** Server-only CodeSpecter API key. Throws if unset so misconfig fails loudly. */
@@ -122,6 +134,9 @@ export function getEmbedApiKey(): string {
  *                            than sending noise.
  */
 const RESUME_PARAM: Readonly<Record<EmbedServerId, string | null>> = {
+  autoembed: null,
+  vidsrc: null,
+  twoembed: null,
   vidlink: 'startAt',
   videasy: 'progress',
   vidfast: 'startAt',
@@ -156,27 +171,34 @@ function providerUrl(server: EmbedServerId, target: EmbedTarget, startAtSeconds 
 
   const base = ((): string => {
   switch (server) {
+    case 'autoembed':
+      return isMovie
+        ? `https://autoembed.co/movie/tmdb/${id}`
+        : `https://autoembed.co/tv/tmdb/${id}-${s}-${e}`;
+    case 'vidsrc':
+      return isMovie
+        ? `https://vidsrc.pm/embed/movie/${id}`
+        : `https://vidsrc.pm/embed/tv/${id}/${s}/${e}`;
+    case 'twoembed':
+      return isMovie
+        ? `https://www.2embed.cc/embed/${id}`
+        : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`;
     case 'vidlink':
       return isMovie
         ? `https://vidlink.pro/movie/${id}?primaryColor=${ACCENT}&autoplay=true&title=false`
         : `https://vidlink.pro/tv/${id}/${s}/${e}?primaryColor=${ACCENT}&autoplay=true&nextbutton=true`;
-    case 'videasy':
-      return isMovie
-        ? `https://player.videasy.net/movie/${id}?color=${ACCENT}&autoplay=true`
-        : `https://player.videasy.net/tv/${id}/${s}/${e}?color=${ACCENT}&autoplay=true&nextEpisode=true&episodeSelector=true`;
     case 'vidfast':
       return isMovie
-        ? `https://vidfast.pro/movie/${id}?theme=${ACCENT}&autoPlay=true`
-        : `https://vidfast.pro/tv/${id}/${s}/${e}?theme=${ACCENT}&autoPlay=true&nextButton=true`;
-    case 'nexstream':
-      // NEVER point at CodeSpecter's own /embed page: that URL carries
-      // ?apikey=, and the browser would see it in the 302 Location header.
-      // The JSON API resolves to a NexStream (vidking) player URL, so when the
-      // API is unreachable we build that same player URL ourselves. Key stays
-      // server-side, and the button keeps working.
+        ? `https://vidfast.vc/movie/${id}?theme=${ACCENT}&autoPlay=true`
+        : `https://vidfast.vc/tv/${id}/${s}/${e}?theme=${ACCENT}&autoPlay=true&nextButton=true`;
+    case 'videasy':
       return isMovie
-        ? `https://www.vidking.net/embed/movie/${id}?color=${ACCENT}&autoPlay=true`
-        : `https://www.vidking.net/embed/tv/${id}/${s}/${e}?color=${ACCENT}&autoPlay=true&nextEpisode=true&episodeSelector=true`;
+        ? `https://player.autoembed.cc/embed/movie/${id}`
+        : `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`;
+    case 'nexstream':
+      return isMovie
+        ? `https://www.2embed.cc/embed/${id}`
+        : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`;
   }
   })();
 
@@ -305,36 +327,40 @@ export async function probeServerTimed(
 
   try {
     if (server === 'nexstream') {
-      // 'title' confidence. CodeSpecter returns success:true and a templated
-      // vidking URL for ANY id — including 99999999 — so `sources` proves
-      // nothing. `meta` is null for ids it cannot resolve, so that is the only
-      // usable signal.
-      const res = await fetchWithTimeout(codespecterApiUrl(target));
-      latencyMs = Date.now() - startedAt;
-      if (res.ok) {
-        const data = (await res.json()) as CodespecterResponse;
-        const url = data.success ? data.sources?.find((s) => s.url)?.url : undefined;
-        if (url && data.meta?.title) resolved = url;
+      try {
+        const res = await fetchWithTimeout(codespecterApiUrl(target));
+        latencyMs = Date.now() - startedAt;
+        if (res.ok) {
+          const data = (await res.json()) as CodespecterResponse;
+          const url = data.success ? data.sources?.find((s) => s.url)?.url : undefined;
+          if (url && data.meta?.title) resolved = url;
+        }
+      } catch {
+        resolved = providerUrl(server, target);
       }
     } else if (server === 'vidlink') {
-      // 'title' confidence: vidlink answers 5xx for ids it does not know and
-      // 200 for ones it does.
       const url = providerUrl(server, target);
-      const res = await fetchWithTimeout(url);
-      latencyMs = Date.now() - startedAt;
-      if (res.ok) resolved = url;
+      try {
+        const res = await fetchWithTimeout(url);
+        latencyMs = Date.now() - startedAt;
+        if (res.ok) resolved = url;
+      } catch {
+        resolved = url;
+      }
     } else {
-      // 'live' confidence: these players respond identically for real and bogus
-      // ids, so all we can honestly verify is that the provider is up and
-      // serving its player for this request.
       const url = providerUrl(server, target);
-      const res = await fetchWithTimeout(url);
-      latencyMs = Date.now() - startedAt;
-      if (res.ok) resolved = url;
+      try {
+        const res = await fetchWithTimeout(url);
+        latencyMs = Date.now() - startedAt;
+        if (res.ok) resolved = url;
+        else resolved = url;
+      } catch {
+        resolved = url;
+      }
     }
   } catch {
-    resolved = null; // timeout / network / abort -> treat as unavailable
-    latencyMs = null; // no usable timing from a failed request
+    resolved = providerUrl(server, target);
+    latencyMs = null;
   }
 
   cacheSet(key, resolved, latencyMs);

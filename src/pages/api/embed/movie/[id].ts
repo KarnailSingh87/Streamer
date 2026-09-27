@@ -66,7 +66,7 @@ export const GET: APIRoute = async ({ params, url }) => {
         'X-Embed-Server': requested,
         'X-Embed-Confirmed': '0',
         'Cache-Control': 'private, no-store',
-        'Referrer-Policy': 'no-referrer',
+        'Referrer-Policy': 'no-referrer-when-downgrade',
       },
     });
   }
@@ -88,7 +88,7 @@ export const GET: APIRoute = async ({ params, url }) => {
       'X-Embed-Confirmed': resolved.confirmed ? '1' : '0',
       // Never let a shared cache store a redirect that may embed a key.
       'Cache-Control': 'private, no-store',
-      'Referrer-Policy': 'no-referrer',
+      'Referrer-Policy': 'no-referrer-when-downgrade',
     },
   });
 };

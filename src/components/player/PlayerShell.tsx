@@ -149,6 +149,9 @@ export interface PlayerShellProps {
   ratingBadge?: string;
   /** Content warning / advisory text, e.g. "frightening scenes, sexual content, violence, tobacco depictions, alcohol use" */
   contentAdvisory?: string;
+  servers?: Array<{ id: string; name: string; label: string }>;
+  activeServer?: string | null;
+  onServer?: (id: string) => void;
 }
 
 /** Read a rem-valued CSS custom property from an element, in pixels. */
@@ -184,6 +187,9 @@ export default function PlayerShell({
   showAutoplayNext,
   ratingBadge,
   contentAdvisory,
+  servers,
+  activeServer,
+  onServer,
 }: PlayerShellProps) {
   const {
     hostRef,
@@ -622,35 +628,6 @@ export default function PlayerShell({
         {/* Engine surface. The adapter appends <video> / <iframe> here. */}
         <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
 
-        {/* Ad-blocker click shield over embed video area:
-            Prevents accidental clicks on the video canvas from triggering third-party
-            ad traps (blocking Opera/Adcash popups and unwanted tabs).
-            Single click toggles playback, double click toggles fullscreen. */}
-        {started && !hasError && !ended && engine === 'embed' && (
-          <div
-            className="fp-embed-shield"
-            onClick={(event) => {
-              event.stopPropagation();
-              event.preventDefault();
-              wake();
-              api.togglePlay();
-            }}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              event.preventDefault();
-              toggleFullscreen();
-            }}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              wake();
-            }}
-            role="button"
-            tabIndex={-1}
-            aria-label={t('play')}
-            title="Click to toggle play/pause, double click for fullscreen"
-          />
-        )}
-
         {/* Top-left cut / cross button (exit player / go back) */}
         {started && !hasError && (
           <div className="fp-embed-back-control">
@@ -671,6 +648,26 @@ export default function PlayerShell({
               title={t('back')}
             >
               <CloseIcon size={22} />
+            </button>
+          </div>
+        )}
+
+        {/* Top-right in-player server switch button */}
+        {started && !hasError && servers && servers.length > 0 && onServer && (
+          <div className="fp-embed-server-control">
+            <button
+              type="button"
+              className="fp-embed-server-btn"
+              onClick={() => {
+                const currentIndex = servers.findIndex((s) => s.id === activeServer);
+                const next = servers[(currentIndex + 1) % servers.length];
+                if (next) onServer(next.id);
+              }}
+              title={`Active: ${servers.find((s) => s.id === activeServer)?.name || activeServer || 'Server 1'}. Click to switch server.`}
+            >
+              <span className="fp-server-bolt">⚡</span>
+              <span>{servers.find((s) => s.id === activeServer)?.name?.replace(/\s*\(.*\)/, '') || 'Server 1'}</span>
+              <span className="fp-server-next-hint">Switch</span>
             </button>
           </div>
         )}
@@ -837,8 +834,21 @@ export default function PlayerShell({
             </span>
             <p className="fp-error-text">{errorMessage}</p>
             <div className="fp-error-actions">
+              {servers && servers.length > 1 && onServer && (
+                <button
+                  type="button"
+                  className="fp-pill fp-pill-primary"
+                  onClick={() => {
+                    const currentIndex = servers.findIndex((s) => s.id === activeServer);
+                    const next = servers[(currentIndex + 1) % servers.length];
+                    if (next) onServer(next.id);
+                  }}
+                >
+                  ⚡ Try Next Server
+                </button>
+              )}
               {snapshot.error?.retryable !== false && (
-                <button type="button" className="fp-pill fp-pill-primary" onClick={onReload}>
+                <button type="button" className="fp-pill" onClick={onReload}>
                   {t('retry')}
                 </button>
               )}

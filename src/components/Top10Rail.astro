@@ -43,7 +43,7 @@ const top10 = items.slice(0, 10);
           const isClone = i >= top10.length;
           const rank = (i % top10.length) + 1;
           const resolvedType = (item.media_type as 'movie' | 'tv') ?? mediaType;
-          const href = `/${resolvedType === 'movie' ? 'movie' : 'series'}/${item.id}`;
+          const href = `/${resolvedType === 'movie' ? 'movie' : 'series'}/${item.id}?play=1#watch`;
           const resolvedTitle = item.title ?? item.name ?? '';
           const poster = item.poster_path
             ? `https://image.tmdb.org/t/p/w342${item.poster_path}`

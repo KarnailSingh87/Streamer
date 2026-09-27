@@ -98,7 +98,8 @@ export default function WatchNow({
   contentAdvisory,
   initialSeason,
   initialEpisode,
-}: WatchNowProps) {
+  autoStart = true,
+}: WatchNowProps & { autoStart?: boolean }) {
   /**
    * Locale is resolved in the browser, not on the server. Detail pages are
    * edge-cached (see src/middleware.ts) without a `Vary: Accept-Language`, so
@@ -137,7 +138,22 @@ export default function WatchNow({
   }, [media, trailerKey]);
 
   const [engine, setEngine] = useState<EngineId>(() => (media ? 'html5' : 'embed'));
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('play') === '1' || window.location.hash === '#watch') return true;
+    }
+    return autoStart ?? true;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('play') === '1' || window.location.hash === '#watch') {
+      const el = document.getElementById('watch');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
   const [reloadKey, setReloadKey] = useState(0);
   const [upNextDismissed, setUpNextDismissed] = useState(false);
 
@@ -799,6 +815,9 @@ export default function WatchNow({
         showAutoplayNext={isSeries}
         ratingBadge={derivedBadge}
         contentAdvisory={derivedAdvisory}
+        servers={serverOptions}
+        activeServer={server}
+        onServer={switchServer}
         episodeNav={
           isSeries
             ? {

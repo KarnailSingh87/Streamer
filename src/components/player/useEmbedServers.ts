@@ -144,11 +144,12 @@ interface Args {
 }
 
 export function useEmbedServers({ type, id, season, episode, enabled = true, preferred }: Args) {
-  // Seeded with the full list so the picker is never empty, but WITHOUT a
-  // selection: `server` is null until a health pass has decided.
+  // Seeded with the full list and default best server so playback can start immediately
+  // without a blocking "Finding the best server..." or "Fetching" wait.
+  const initialPick = preferred ?? FALLBACK_SERVERS[0]?.id ?? 'autoembed';
   const [servers, setServers] = useState<AvailableServer[]>(FALLBACK_SERVERS);
-  const [status, setStatus] = useState<ServerStatus>('idle');
-  const [server, setServer] = useState<string | null>(null);
+  const [status, setStatus] = useState<ServerStatus>('ready');
+  const [server, setServer] = useState<string | null>(initialPick);
   /** True while the current selection is the one scoring chose for us. */
   const [isAuto, setIsAuto] = useState(true);
   const [health, setHealth] = useState<HealthLedger>({});
