@@ -51,7 +51,6 @@ import type { TimeMarker } from '../../lib/player/types';
 import { formatTime } from '../../lib/player/format';
 import type { PlayerT } from '../../lib/player/strings';
 import SeekBar from './SeekBar';
-import type { ServerOption } from './SourceBar';
 import VolumeControl from './VolumeControl';
 import Popover from './Popover';
 import TracksMenu from './TracksMenu';
@@ -113,8 +112,6 @@ export interface PlayerShellProps {
   onBack?: () => void;
   onReload: () => void;
   markers: TimeMarker[];
-  /** Server / source switcher, rendered under the stage. */
-  belowStage?: ReactNode;
   /** Episode navigation (series only). */
   episodeNav?: {
     hasPrev: boolean;
@@ -150,15 +147,6 @@ export interface PlayerShellProps {
   ratingBadge?: string;
   /** Content warning / advisory text, e.g. "frightening scenes, sexual content, violence, tobacco depictions, alcohol use" */
   contentAdvisory?: string;
-  /**
-   * Ranked server list, best first. The same `ServerOption` shape SourceBar
-   * takes, so the island builds the list once and hands the identical array to
-   * both — the stage badge and the below-stage bar can never disagree about
-   * which server is live or which one failed.
-   */
-  servers?: ServerOption[];
-  activeServer?: string | null;
-  onServer?: (id: string) => void;
 }
 
 /** Read a rem-valued CSS custom property from an element, in pixels. */
@@ -183,7 +171,6 @@ export default function PlayerShell({
   onBack,
   onReload,
   markers,
-  belowStage,
   episodeNav,
   episodesPanel,
   upNext,
@@ -194,9 +181,6 @@ export default function PlayerShell({
   showAutoplayNext,
   ratingBadge,
   contentAdvisory,
-  servers,
-  activeServer,
-  onServer,
 }: PlayerShellProps) {
   const {
     hostRef,
@@ -472,7 +456,18 @@ export default function PlayerShell({
   const isBuffering = engine !== 'embed' && (snapshot.status === 'buffering' || (started && snapshot.status === 'loading'));
   const hasError = snapshot.status === 'error' && !!snapshot.error;
   const ended = snapshot.status === 'ended';
-  const showSeekBar = caps.time && snapshot.duration > 0 && engine !== 'embed';
+  /**
+   * The progress bar is shown whenever the engine reports time — including the
+   * embed, which flips `caps.time` on as soon as the provider's player announces
+   * a position. Whether it can be DRAGGED is a separate question, answered by
+   * `caps.seek`, and SeekBar is told that separately below: a bar that shows how
+   * far along the film is still worth having even when we cannot command the
+   * seek, which is exactly the read-only case Netflix's own bar degrades to.
+   */
+  const showSeekBar = caps.time && snapshot.duration > 0;
+  /** A control that cannot act is worse than no control, so skip ±10s is only
+   *  drawn on engines whose seek is ours to command. */
+  const canSeek = caps.seek;
   const activeTextTrack = snapshot.textTracks.find((s) => s.active) ?? null;
 
   const errorMessage = useMemo(() => {
@@ -722,48 +717,29 @@ export default function PlayerShell({
         {/* Engine surface. The adapter appends <video> / <iframe> here. */}
         <div ref={hostRef} className="fp-surface" style={surfaceStyle} />
 
-        {/* Top-left cut / cross button (exit player / go back) */}
-        {started && !hasError && (
-          <div className="fp-embed-back-control">
-            <button
-              type="button"
-              className="fp-embed-screen-btn"
-              onClick={() => {
-                if (document.fullscreenElement) {
-                  document.exitFullscreen().catch(() => {});
-                }
-                if (onBack) {
-                  onBack();
-                } else if (typeof window !== 'undefined' && window.history.length > 1) {
-                  window.history.back();
-                }
-              }}
-              aria-label={t('back')}
-              title={t('back')}
-            >
-              <CloseIcon size={22} />
-            </button>
-          </div>
-        )}
+        {/* Pre-play splash. The play control is a real button, so Enter/Space
+        {/* Wake layer, third-party embed only, and only while our chrome is
+            hidden.
 
-        {/* Top-right in-player server switch button */}
-        {started && !hasError && servers && servers.length > 0 && onServer && (
-          <div className="fp-embed-server-control">
-            <button
-              type="button"
-              className="fp-embed-server-btn"
-              onClick={() => {
-                const currentIndex = servers.findIndex((s) => s.id === activeServer);
-                const next = servers[(currentIndex + 1) % servers.length];
-                if (next) onServer(next.id);
-              }}
-              title={`Active: ${servers.find((s) => s.id === activeServer)?.name || activeServer || 'Server 1'}. Click to switch server.`}
-            >
-              <span className="fp-server-bolt">⚡</span>
-              <span>{servers.find((s) => s.id === activeServer)?.name?.replace(/\s*\(.*\)/, '') || 'Server 1'}</span>
-              <span className="fp-server-next-hint">Switch</span>
-            </button>
-          </div>
+            A cross-origin <iframe> consumes every pointer and mouse event inside
+            it: they never reach this document, so the stage's own handlers cannot
+            hear a viewer touching the picture. Without this layer the Netflix
+            chrome we now draw over the embed would be unreachable — there would
+            be no gesture that could ever summon it.
+
+            It is deliberately the *only* thing on screen while the chrome is
+            hidden, and it does nothing but wake. The moment the bars appear this
+            layer is removed, so the provider's frame gets the whole surface back
+            and its own controls work exactly as they do now. The tap therefore
+            costs a viewer nothing: it is spent revealing the controls, the same
+            bargain a phone makes on every video player. */}
+        {started && engine === 'embed' && !hasError && !controlsVisible && (
+          <div
+            className="fp-wake-layer"
+            aria-hidden="true"
+            onPointerDown={wake}
+            onPointerMove={wake}
+          />
         )}
 
         {/* Pre-play splash. The play control is a real button, so Enter/Space
@@ -928,19 +904,10 @@ export default function PlayerShell({
             </span>
             <p className="fp-error-text">{errorMessage}</p>
             <div className="fp-error-actions">
-              {servers && servers.length > 1 && onServer && (
-                <button
-                  type="button"
-                  className="fp-pill fp-pill-primary"
-                  onClick={() => {
-                    const currentIndex = servers.findIndex((s) => s.id === activeServer);
-                    const next = servers[(currentIndex + 1) % servers.length];
-                    if (next) onServer(next.id);
-                  }}
-                >
-                  ⚡ Try Next Server
-                </button>
-              )}
+              {/* No manual "try another server" button: failing over is the
+                  player's job, and a viewer handed a list of servers is being
+                  asked to do the work the ranking already did. Retrying re-runs
+                  selection from scratch, servers and all. */}
               {snapshot.error?.retryable !== false && (
                 <button type="button" className="fp-pill" onClick={onReload}>
                   {t('retry')}
@@ -982,8 +949,14 @@ export default function PlayerShell({
           </div>
         )}
 
-        {/* Top bar: only rendered for html5/youtube where we own controls; embed provider has native working controls in the bottom */}
-        {started && engine !== 'embed' && (
+        {/* Top bar. Rendered for EVERY engine, the third-party embed included:
+            a title, a way out and the audio/subtitles menu are not luxuries, and
+            a player that showed nothing but a provider's own menu in the middle
+            of the screen is exactly the third-party experience we are replacing.
+            What stays engine-specific is the CONTENT: the seek bar and the
+            skip buttons below only appear where the engine can actually honour
+            them, because a control that does nothing is worse than no control. */}
+        {started && (
           <div
             className="fp-topbar"
             onPointerEnter={(event) => {
@@ -1006,14 +979,23 @@ export default function PlayerShell({
                   <CloseIcon size={24} />
                 </button>
               )}
-              <div className="fp-rating-wrap">
-                <span className="fp-rating-pill">
-                  {ratingBadge || 'Rated U/A 13+'}
-                </span>
-                <span className="fp-rating-advisory">
-                  {contentAdvisory || 'frightening scenes, sexual content, violence, tobacco depictions, alcohol use'}
-                </span>
+              <div className="fp-topbar-text">
+                <span className="fp-topbar-title">{title}</span>
+                {subtitle && <span className="fp-topbar-sub">{subtitle}</span>}
               </div>
+              {/* The rating line is the first thing to go when the stage is
+                  narrow: it is reference information (it is on the title's page
+                  too) and the title is not. */}
+              {!compact && (
+                <div className="fp-rating-wrap">
+                  <span className="fp-rating-pill">
+                    {ratingBadge || 'Rated U/A 13+'}
+                  </span>
+                  <span className="fp-rating-advisory">
+                    {contentAdvisory || 'frightening scenes, sexual content, violence, tobacco depictions, alcohol use'}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="fp-topbar-right">
@@ -1027,49 +1009,6 @@ export default function PlayerShell({
                 title={t('audioAndSubtitles')}
               >
                 <DialogueIcon size={22} />
-              </button>
-
-              {/* Volume */}
-              {caps.volume !== 'none' && (
-                <VolumeControl
-                  volume={prefs.volume}
-                  muted={prefs.muted}
-                  mode={caps.volume}
-                  onVolume={(value) => {
-                    setVolume(value);
-                    flashHud('volume', Math.round(value * 100));
-                  }}
-                  onToggleMute={toggleMute}
-                  t={t}
-                />
-              )}
-
-              {/* Fullscreen */}
-              <button
-                type="button"
-                className="fp-btn fp-top-btn"
-                onClick={toggleFullscreen}
-                aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
-                title={`${isFullscreen ? t('exitFullscreen') : t('fullscreen')} (F)`}
-              >
-                {isFullscreen || pseudoFullscreen ? (
-                  <ExitFullscreenIcon size={22} />
-                ) : (
-                  <FullscreenIcon size={22} />
-                )}
-              </button>
-
-              {/* Settings with text label below */}
-              <button
-                ref={overflowBtn}
-                type="button"
-                className={`fp-settings-btn${menu === 'overflow' ? ' is-open' : ''}`}
-                onClick={() => setMenu(menu === 'overflow' ? null : 'overflow')}
-                aria-label="Settings"
-                title="Settings"
-              >
-                <VerticalDotsIcon size={20} />
-                <span className="fp-settings-label">Settings</span>
               </button>
             </div>
           </div>
@@ -1094,8 +1033,12 @@ export default function PlayerShell({
         {upNext}
         {ended && endCard}
 
-        {/* ── Control bar (HTML5/YouTube only — embed engines use their own working native controls) ── */}
-        {started && !hasError && engine !== 'embed' && (
+        {/* ── Control bar. Rendered for EVERY engine, the third-party embed
+             included, so the options on screen are the same wherever the video
+             is coming from. Netflix's order: progress across the full width, then
+             play/pause, volume, skip and — on the right — the next episode,
+             settings and fullscreen. ── */}
+        {started && !hasError && (
           <div
             ref={controlsRef}
             className="fp-controls"
@@ -1117,7 +1060,7 @@ export default function PlayerShell({
                 currentTime={snapshot.currentTime}
                 duration={snapshot.duration}
                 buffered={snapshot.buffered}
-                seekable={caps.seek}
+                seekable={canSeek}
                 markers={markers}
                 scrubTime={scrubTime}
                 onScrub={setScrubTime}
@@ -1128,19 +1071,12 @@ export default function PlayerShell({
               />
             )}
 
-            {/* Bottom-Center Transport Controls: [ ↺ 10 ] [ ▶ / || ] [ ↻ 10 ] */}
-            <div className="fp-center-transport">
-                {/* Rewind 10s */}
-                <button
-                  type="button"
-                  className="fp-transport-skip"
-                  onClick={() => seekBy(-SKIP_SECONDS)}
-                  aria-label={t('back10')}
-                  title={`${t('back10')} (←)`}
-                >
-                  <SkipIcon direction="back" size={26} />
-                </button>
-
+            {/* Netflix's one row: transport on the left, actions on the right.
+                Volume sits with the transport because that is where Netflix puts
+                it, and on the embed engine it is the one control we can actually
+                drive — the value is relayed into the frame. */}
+            <div className="fp-bar-row">
+              <div className="fp-bar-left">
                 {/* Main Play / Pause */}
                 {caps.playback && (
                   <button
@@ -1150,21 +1086,96 @@ export default function PlayerShell({
                     aria-label={primaryLabel}
                     title={`${primaryLabel} (Space)`}
                   >
-                    {ended ? <ReplayIcon size={30} /> : isPlaying ? <PauseIcon size={30} /> : <PlayIcon size={30} />}
+                    {ended ? <ReplayIcon size={26} /> : isPlaying ? <PauseIcon size={26} /> : <PlayIcon size={26} />}
+                  </button>
+                )}
+
+                {/* Rewind 10s */}
+                {canSeek && (
+                  <button
+                    type="button"
+                    className="fp-transport-skip"
+                    onClick={() => seekBy(-SKIP_SECONDS)}
+                    aria-label={t('back10')}
+                    title={`${t('back10')} (←)`}
+                  >
+                    <SkipIcon direction="back" size={24} />
                   </button>
                 )}
 
                 {/* Forward 10s */}
+                {canSeek && (
+                  <button
+                    type="button"
+                    className="fp-transport-skip"
+                    onClick={() => seekBy(SKIP_SECONDS)}
+                    aria-label={t('forward10')}
+                    title={`${t('forward10')} (→)`}
+                  >
+                    <SkipIcon direction="forward" size={24} />
+                  </button>
+                )}
+
+                {caps.volume !== 'none' && (
+                  <VolumeControl
+                    volume={prefs.volume}
+                    muted={prefs.muted}
+                    mode={caps.volume}
+                    onVolume={(value) => {
+                      setVolume(value);
+                      flashHud('volume', Math.round(value * 100));
+                    }}
+                    onToggleMute={toggleMute}
+                    t={t}
+                  />
+                )}
+              </div>
+
+              <div className="fp-bar-right">
+                {/* Next episode. Navigation is ours, not the provider's, so this
+                    works identically on every engine. */}
+                {episodeNav?.hasNext && (
+                  <button
+                    type="button"
+                    className="fp-btn fp-top-btn"
+                    onClick={episodeNav.onNext}
+                    aria-label={t('nextEpisode')}
+                    title={t('nextEpisode')}
+                  >
+                    <NextIcon size={22} />
+                  </button>
+                )}
+
+                {/* Settings with text label below */}
+                <button
+                  ref={overflowBtn}
+                  type="button"
+                  className={`fp-settings-btn${menu === 'overflow' ? ' is-open' : ''}`}
+                  onClick={() => setMenu(menu === 'overflow' ? null : 'overflow')}
+                  aria-label={t('settings')}
+                  title={t('settings')}
+                >
+                  <VerticalDotsIcon size={20} />
+                  <span className="fp-settings-label">{t('settings')}</span>
+                </button>
+
+                {/* Fullscreen */}
                 <button
                   type="button"
-                  className="fp-transport-skip"
-                  onClick={() => seekBy(SKIP_SECONDS)}
-                  aria-label={t('forward10')}
-                  title={`${t('forward10')} (→)`}
+                  className="fp-btn fp-top-btn"
+                  onClick={toggleFullscreen}
+                  aria-label={isFullscreen ? t('exitFullscreen') : t('fullscreen')}
+                  title={`${isFullscreen ? t('exitFullscreen') : t('fullscreen')} (F)`}
                 >
-                  <SkipIcon direction="forward" size={26} />
+                  {isFullscreen || pseudoFullscreen ? (
+                    <ExitFullscreenIcon size={22} />
+                  ) : (
+                    <FullscreenIcon size={22} />
+                  )}
                 </button>
               </div>
+            </div>
+
 
             {/* Menus popovers */}
             <Popover
@@ -1269,7 +1280,6 @@ export default function PlayerShell({
         </p>
       </div>
 
-      {belowStage}
       {notice}
     </div>
   );

@@ -26,27 +26,26 @@
 // it has finished long before there is anything to show, and the result is cached
 // for 45s so switching episodes costs no network at all.
 //
-// THREE RULES THAT SURVIVED
+// TWO RULES THAT SURVIVED
 //  1. The list is never empty. Even a total probe failure yields every provider,
-//     unproven, so the viewer can always pick one by hand.
-//  2. A manual pick always wins and survives re-renders, refetches and remounts
-//     (sessionStorage, keyed by title — see serverRanking.writeServerOverride).
-//  3. A server that failed for THIS title is never auto-selected again until the
+//     unproven, so playback always has somewhere to go.
+//  2. A server that failed for THIS title is never auto-selected again until the
 //     title changes or the viewer explicitly retries.
+//
+// The viewer is never asked to choose. Manual picking was removed from the UI and
+// with it the override channel (`writeServerOverride`): a remembered pick is
+// precisely how a dead server kept being handed back to a viewer, since the
+// override was read *before* any evidence was gathered. Selection now starts from
+// what the ranking and the long-lived ledger know, every time.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   bestServerId,
   expectsProof as rankingExpectsProof,
   qualityFor,
   qualityLabel,
-  rankServers,
   readHealth,
-  readServerOverride,
   recordServerOutcome,
-  titleKey as makeTitleKey,
-  writeServerOverride,
   type HealthLedger,
-  type RankedServer,
 } from '../../lib/player/serverRanking';
 import {
   KNOWN_SERVERS,
@@ -173,19 +172,11 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
   const [servers, setServers] = useState<AvailableServer[]>(FALLBACK_SERVERS);
   const [status, setStatus] = useState<ServerStatus>('ready');
   const [server, setServer] = useState<string | null>(initialPick);
-  /** True while the current selection is the one scoring chose for us. */
-  const [isAuto, setIsAuto] = useState(true);
-  const [health, setHealth] = useState<HealthLedger>({});
   /** How long the last selection pass took, in ms. Surfaced for diagnostics. */
   const [selectionMs, setSelectionMs] = useState<number | null>(null);
 
   const preferredRef = useRef(preferred ?? null);
   preferredRef.current = preferred ?? null;
-
-  /** Per-title key for the manual-override memory (episode intentionally out). */
-  const overrideKey = makeTitleKey(type, id);
-  const overrideKeyRef = useRef(overrideKey);
-  overrideKeyRef.current = overrideKey;
 
   /**
    * Servers already tried and failed for the title currently loaded. Ranked last
@@ -197,11 +188,11 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
 
   // The ledger is read once on mount: it is written rarely (only on a real
   // playback outcome) and reading it on every rank would hit localStorage in a
-  // render path.
+  // render path. Held in a ref rather than state because nothing renders from it
+  // directly — every rank reads `healthRef.current`, and a rank always happens
+  // inside an `adopt`/`reportOutcome` call that already re-renders.
   useEffect(() => {
-    const ledger = readHealth();
-    healthRef.current = ledger;
-    setHealth(ledger);
+    healthRef.current = readHealth();
   }, []);
 
   const key = type === 'tv' ? `${type}:${id}:${season}:${episode}` : `${type}:${id}`;
@@ -214,17 +205,14 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
   /**
    * Decide what plays from a scored list.
    *
-   * Precedence: an explicit manual pick for this title (this session) → the
-   * server remembered by Continue Watching, but only while it is still viable →
-   * the highest-scoring server. `null` from `bestServerId` means every server is
-   * disqualified, which is the one case where the viewer has to choose.
+   * Precedence: the server remembered by Continue Watching, but only while it is
+   * still viable (never failed for this title, reachable) → the highest-scoring
+   * server. `null` from `bestServerId` means every server is disqualified, which
+   * is the one case the viewer is told about rather than handed a list to sort.
    */
   const adopt = useCallback((list: AvailableServer[]) => {
     const safe = list.length > 0 ? list : FALLBACK_SERVERS;
     setServers(safe);
-
-    const override = readServerOverride(overrideKeyRef.current);
-    const manual = safe.find((s) => s.id === override && !tried.current.has(s.id))?.id ?? null;
 
     const remembered = preferredRef.current;
     // A remembered server that has since failed for this title, or that this
@@ -235,10 +223,9 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
       )?.id ?? null;
 
     const best = bestServerId(safe, { health: healthRef.current, tried: tried.current });
-    const pick = manual ?? cw ?? best;
+    const pick = cw ?? best;
 
     setServer(pick);
-    setIsAuto(!manual && !cw);
     setStatus(pick ? 'ready' : 'exhausted');
     return pick;
   }, []);
@@ -270,7 +257,6 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
     // A new title/episode is a clean slate for failover: a provider that could
     // not serve the previous episode may serve this one.
     tried.current = new Set();
-    setIsAuto(true);
 
     const cached = readCachedHealth(target);
     if (cached?.fresh) {
@@ -283,15 +269,11 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
     }
 
     // Do NOT blank out the server when switching episodes.
-    // Retain the current working server, or fall back to a remembered choice and
-    // finally to the same seeded pick the first commit used — never to a
-    // hardcoded provider name, which is how a title could end up pinned to one
-    // arbitrary server no matter what the ranking or the ledger had learned.
-    setServer((prev) => {
-      if (prev) return prev;
-      const override = readServerOverride(overrideKeyRef.current);
-      return override || preferredRef.current || initialPick;
-    });
+    // Retain the current working server, or fall back to the same seeded pick the
+    // first commit used — never to a hardcoded provider name, which is how a title
+    // could end up pinned to one arbitrary server no matter what the ranking or the
+    // ledger had learned.
+    setServer((prev) => prev ?? initialPick);
 
     const ac = new AbortController();
     void select(ac.signal);
@@ -299,45 +281,6 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
     // `key` collapses the id/season/episode tuple into one dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled]);
-
-  /** The ranked list, best first. Recomputed only when the inputs change. */
-  const ranked = useMemo<RankedServer<AvailableServer>[]>(
-    () => rankServers(servers, { health, tried: tried.current }),
-    [servers, health]
-  );
-
-  /** What automatic selection would choose right now. */
-  const recommended = useMemo(
-    () => bestServerId(servers, { health, tried: tried.current }),
-    [servers, health]
-  );
-
-  /**
-   * Select a server because the viewer said so. Persisted per title for the
-   * session so nothing can reset it back to auto.
-   */
-  const chooseServer = useCallback((next: string) => {
-    setServer(next);
-    setIsAuto(false);
-    setStatus('ready');
-    writeServerOverride(overrideKeyRef.current, next);
-    // A deliberate pick re-opens the whole failover walk from here.
-    tried.current = new Set();
-  }, []);
-
-  /**
-   * Hand back control to automatic selection (the "Auto" pill).
-   * Returns the id now playing so the caller can remount the engine.
-   */
-  const useAutoServer = useCallback((): string | null => {
-    const best = bestServerId(servers, { health: healthRef.current, tried: tried.current });
-    if (best) {
-      setServer(best);
-      setIsAuto(true);
-      setStatus('ready');
-    }
-    return best;
-  }, [servers]);
 
   /**
    * Record a real outcome for a server and, on failure, return the next-best
@@ -364,7 +307,6 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
     ): string | null => {
       const ledger = recordServerOutcome(serverId, ok, startupMs, silent);
       healthRef.current = ledger;
-      setHealth(ledger);
       if (ok) return null;
       tried.current.add(serverId);
       const next = bestServerId(servers, { health: ledger, tried: tried.current });
@@ -427,17 +369,9 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
 
   return {
     servers,
-    /** Ranked best-first, with the reason and score for each position. */
-    ranked,
-    /** What automatic selection would pick right now. */
-    recommended,
-    /** True while the current pick is automatic (no manual override in force). */
-    isAuto,
     /** null until a selection pass has decided — nothing is preselected. */
     server,
     setServer,
-    chooseServer,
-    useAutoServer,
     reportOutcome,
     expectsProof,
     resetTried,

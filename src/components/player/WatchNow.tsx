@@ -21,7 +21,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlayer } from './usePlayer';
 import PlayerShell from './PlayerShell';
-import SourceBar, { type ServerOption } from './SourceBar';
 import EpisodeOverlay, { type EpisodeItem, type SeasonOption } from './EpisodeOverlay';
 import UpNext from './UpNext';
 import EndCard, { type RelatedTitle } from './EndCard';
@@ -44,6 +43,10 @@ const AUTOPLAY_COUNTDOWN = 8;
 /** Ignore a resume offer this close to the start or the end. */
 const RESUME_MIN = 15;
 const RESUME_TAIL = 60;
+/** Automatic recovery once every server has failed, in pauses not attempts. */
+const MAX_AUTO_RETRIES = 3;
+const AUTO_RETRY_BASE_MS = 4000;
+const AUTO_RETRY_BACKOFF_MS = 3000;
 
 export interface WatchNowProps {
   mediaType: 'movie' | 'tv';
@@ -125,17 +128,6 @@ export default function WatchNow({
   const chromeDir = languageDirection(uiLocale);
   const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
   const isSeries = mediaType === 'tv';
-
-  // ── Which engines can we offer? ───────────────────────────────────────────
-  const availableEngines = useMemo<EngineId[]>(() => {
-    const list: EngineId[] = [];
-    if (media) list.push('html5');
-    // The embed engine is always an option for a real title; the server list is
-    // never empty (useEmbedServers falls back to the static registry).
-    list.push('embed');
-    if (trailerKey) list.push('youtube');
-    return list;
-  }, [media, trailerKey]);
 
   const [engine, setEngine] = useState<EngineId>(() => (media ? 'html5' : 'embed'));
   const [started, setStarted] = useState(() => {
@@ -231,18 +223,15 @@ export default function WatchNow({
   }, [numericId, mediaType, isSeries, effectiveSeasons]);
 
   // ── Streaming servers (embed engine only) ─────────────────────────────────
-  // Nothing is preselected. The hook scores every server from a parallel health
-  // pass (see lib/player/serverHealth.ts) and hands back a decision within its
-  // sub-second budget; this island only says which title it wants and reacts to
-  // outcomes. See serverRanking.ts for the weights behind "best".
+  // No server is ever preselected by hand and none is offered to the viewer: the
+  // hook scores every server from a parallel health pass (see
+  // lib/player/serverHealth.ts) and hands back a decision within its sub-second
+  // budget. This island only says which title it wants and reacts to outcomes.
+  // See serverRanking.ts for the weights behind "best".
   const {
-    ranked,
-    recommended,
-    isAuto,
     server,
     setServer,
-    chooseServer,
-    useAutoServer,
+    retry,
     reportOutcome,
     expectsProof,
     resetTried,
@@ -543,6 +532,35 @@ export default function WatchNow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, snapshot.status, server, sourceKey]);
 
+  /**
+   * When every server has failed for this title there is no list left for the
+   * viewer to choose from and no way for them to pick a different one, so the
+   * walk is re-run on its own. The failure just recorded is in the ledger by now,
+   * which is what makes the fresh pass choose differently instead of handing back
+   * the same dead provider; the pause grows with each attempt.
+   *
+   * Bounded on purpose. After MAX_AUTO_RETRIES the error card stays put and the
+   * retry is left to the viewer: a title that genuinely has no source would
+   * otherwise re-mount frames forever, which reads as flicker rather than
+   * recovery, and spends the provider's bandwidth for nothing.
+   */
+  const autoRetries = useRef(0);
+  useEffect(() => {
+    if (engine !== 'embed' || !started || !exhausted) {
+      autoRetries.current = 0;
+      return;
+    }
+    if (autoRetries.current >= MAX_AUTO_RETRIES) return;
+    const attempt = autoRetries.current;
+    const timer = window.setTimeout(() => {
+      autoRetries.current = attempt + 1;
+      setFailedOver(false);
+      failoverFor.current = '';
+      retry();
+    }, AUTO_RETRY_BASE_MS + attempt * AUTO_RETRY_BACKOFF_MS);
+    return () => window.clearTimeout(timer);
+  }, [engine, started, exhausted, retry]);
+
   // ── Actions ───────────────────────────────────────────────────────────────
   const start = useCallback(() => {
     // For a series with nothing selected, start at the first episode that
@@ -565,46 +583,6 @@ export default function WatchNow({
     failoverFor.current = '';
     setReloadKey((key) => key + 1);
   }, [resetTried]);
-
-  const switchEngine = useCallback(
-    (next: EngineId) => {
-      setEngine(next);
-      setEndedFlag(false);
-      setResumeAt(null);
-      setReloadKey((key) => key + 1);
-    },
-    []
-  );
-
-  const switchServer = useCallback(
-    (next: string) => {
-      // A deliberate pick, remembered for this title for the whole session so no
-      // re-render, refetch or unrelated island can drop it back to auto-best.
-      chooseServer(next);
-      setPreferredServer(next);
-      setFailedOver(false);
-      failoverFor.current = '';
-      setEndedFlag(false);
-      // Same continuity as automatic failover: a viewer switching servers mid-film
-      // wants the new one to pick up where they were.
-      const resumeFrom = Math.max(snapshot.currentTime || 0, positionRef.current);
-      if (resumeFrom > 1) setEmbedResumeAt(resumeFrom);
-      setReloadKey((key) => key + 1);
-      remember({ server: next });
-    },
-    [chooseServer, remember, snapshot.currentTime]
-  );
-
-  /** Hand selection back to the ranking (the "Auto" pill). */
-  const switchToAuto = useCallback(() => {
-    const best = useAutoServer();
-    if (!best) return;
-    setPreferredServer(best);
-    setFailedOver(false);
-    failoverFor.current = '';
-    setReloadKey((key) => key + 1);
-    remember({ server: best });
-  }, [useAutoServer, remember]);
 
   const playEpisode = useCallback(
     (season: number, episode: number) => {
@@ -738,22 +716,6 @@ export default function WatchNow({
     });
   }, [engine, isSeries, started, neighbours.next, id, prefetch]);
 
-  // ── Chrome data ───────────────────────────────────────────────────────────
-  // Ranked order, so the bar reads best-first and the badge on the leader is the
-  // truth about what "Auto" would play.
-  const serverOptions: ServerOption[] = ranked.map(({ server: s, reason }) => ({
-    id: s.id,
-    name: s.name,
-    verified: s.verified,
-    online: s.online,
-    live: s.live,
-    qualityLabel: s.qualityLabel ?? null,
-    latencyMs: s.latencyMs ?? null,
-    pending: s.pending ?? false,
-    reachable: s.reachable ?? null,
-    failed: reason === 'failing',
-  }));
-
   const subtitle = isSeries && current
     ? [`S${current.season}`, `E${current.episode}`, currentEpisodeName].filter(Boolean).join(' · ')
     : engine === 'youtube'
@@ -832,9 +794,6 @@ export default function WatchNow({
         showAutoplayNext={isSeries}
         ratingBadge={derivedBadge}
         contentAdvisory={derivedAdvisory}
-        servers={serverOptions}
-        activeServer={server}
-        onServer={switchServer}
         episodeNav={
           isSeries
             ? {
@@ -851,21 +810,6 @@ export default function WatchNow({
         episodesPanel={episodesPanel}
         upNext={upNextNode}
         endCard={endCardNode}
-        belowStage={
-          <SourceBar
-            available={availableEngines}
-            engine={engine}
-            onEngine={switchEngine}
-            servers={serverOptions}
-            activeServer={server}
-            onServer={switchServer}
-            recommended={recommended}
-            isAuto={isAuto}
-            onAuto={switchToAuto}
-            checking={selecting}
-            t={t}
-          />
-        }
         toast={toast}
         optimizing={selecting || (engine === 'embed' && started && !server && !exhausted)}
         notice={
@@ -875,14 +819,15 @@ export default function WatchNow({
             {started && engine === 'embed' && (
               <p className="fp-notice">{t('tracksOnServerHint')}</p>
             )}
-            {/* Every server has now failed for this title. This is the only
-                situation in which the viewer is asked to choose one by hand. */}
+            {/* Every server has now failed for this title. Nothing to pick from
+                and nothing to instruct: the player is still trying, and the only
+                honest thing left to say is that. */}
             {started && engine === 'embed' && exhausted && (
               <p className="fp-notice is-warning">{t('allServersFailed')}</p>
             )}
             {/* The toast that announced the fallback is gone within seconds; this
                 line stays, so a viewer who looked away still understands why they
-                are on a different server and how to change it. */}
+                are watching on a different server. */}
             {started && engine === 'embed' && failedOver && !exhausted && (
               <p className="fp-notice">{t('serverFellBack')}</p>
             )}
