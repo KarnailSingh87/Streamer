@@ -377,6 +377,11 @@ export function usePlayer({
     snapshot.status === 'ready' ||
     snapshot.status === 'idle' ||
     snapshot.status === 'ended' ||
+    // A stall is precisely when a viewer reaches for a control — to pause, to
+    // switch server, to check the quality. Fading the bar out during a buffer
+    // leaves them with nothing to press, which is why this state was missing
+    // from the list the comment above describes.
+    snapshot.status === 'buffering' ||
     snapshot.status === 'error' ||
     offline ||
     scrubTime !== null;
@@ -516,8 +521,13 @@ export function usePlayer({
   const cycleRate = useCallback(
     (direction: 1 | -1) => {
       if (!caps.rate) return;
+      // Step from 1× (normal speed) when the stored rate is not on the ladder —
+      // which is what happens for an engine that refuses one. Index 2 is 1.25×,
+      // so the old fallback silently jumped a viewer up a notch on their first
+      // press instead of from normal.
       const index = RATES.indexOf(prefs.rate as (typeof RATES)[number]);
-      const next = RATES[clamp((index === -1 ? 2 : index) + direction, 0, RATES.length - 1)]!;
+      const from = index === -1 ? RATES.indexOf(1) : index;
+      const next = RATES[clamp(from + direction, 0, RATES.length - 1)]!;
       setRate(next);
     },
     [caps.rate, prefs.rate, setRate]
@@ -680,7 +690,11 @@ export function usePlayer({
       if (offlineRef.current === down) return;
       offlineRef.current = down;
       setOffline(down);
-      announce(down ? t('offline') : t('statePlaying'));
+      // Only the loss of connection is worth interrupting for. Coming back
+      // online is not an event the viewer needs narrated — announcing "playing"
+      // on reconnect told a paused viewer their film had started when it had
+      // not, which is worse than saying nothing.
+      if (down) announce(t('offline'));
     };
     sync();
     window.addEventListener('online', sync);
@@ -704,6 +718,27 @@ export function usePlayer({
       // Let sliders and text inputs use the arrow keys themselves.
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
         if (event.key.startsWith('Arrow')) return;
+      }
+      /**
+       * A focused control owns Space and Enter. The browser already turns those
+       * two keys into a click on the focused button, so handling them here as
+       * well would run the command twice: pressing Space on the play button
+       * would pause and immediately play again, and on the Mute button it would
+       * mute then unmute. The viewer sees a button that does the opposite of
+       * what they asked for. Anything with its own activation behaviour keeps it.
+       */
+      if (
+        target &&
+        (event.key === ' ' || event.key === 'Enter') &&
+        (target.tagName === 'BUTTON' ||
+          target.tagName === 'A' ||
+          target.tagName === 'SELECT' ||
+          target.tagName === 'SUMMARY' ||
+          target.isContentEditable ||
+          target.getAttribute('role') === 'button' ||
+          target.getAttribute('role') === 'menuitem')
+      ) {
+        return;
       }
 
       let handled = true;
@@ -747,10 +782,12 @@ export function usePlayer({
           toggleSubtitles();
           break;
         case '>':
-          cycleRate(1);
+          if (caps.rate) cycleRate(1);
+          else handled = false;
           break;
         case '<':
-          cycleRate(-1);
+          if (caps.rate) cycleRate(-1);
+          else handled = false;
           break;
         case ']':
           setBrightness(prefs.brightness + 0.1);
@@ -789,6 +826,7 @@ export function usePlayer({
     stage.addEventListener('keydown', onKeyDown);
     return () => stage.removeEventListener('keydown', onKeyDown);
   }, [
+    caps.rate,
     caps.seek,
     caps.volume,
     cycleRate,

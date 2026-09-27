@@ -39,6 +39,17 @@ const PROGRESS_INTERVAL = 125;
 /** Minimum stall before we call it "buffering" — avoids a flickering spinner. */
 const STALL_GRACE_MS = 350;
 
+/**
+ * How long a fatal network error gets to fix itself before it is reported.
+ *
+ * `hls.startLoad()` resumes the stream, and on a mobile connection that is
+ * usually the whole story. Surfacing the failure the instant it happens meant a
+ * one-second dropout produced an error card over a video that was about to
+ * resume on its own; waiting for the grace period means only a stream that is
+ * genuinely still stalled gets the message.
+ */
+const HLS_RECOVERY_GRACE_MS = 2500;
+
 type NativeAudioTrackList = {
   length: number;
   [index: number]: { id: string; language: string; label: string; enabled: boolean };
@@ -97,6 +108,7 @@ export class Html5Adapter implements PlayerAdapter {
   private thumbs: ThumbnailProvider | null = null;
   private progressTimer: number | undefined;
   private stallTimer: number | undefined;
+  private retryTimer: number | undefined;
   private destroyed = false;
   /** our text-track id -> hls.js subtitle track index (in-manifest subs only) */
   private hlsSubtitleIndex = new Map<string, number>();
@@ -106,6 +118,12 @@ export class Html5Adapter implements PlayerAdapter {
     if (source.engine !== 'html5') return;
     this.sink = sink;
     const media = source.media;
+
+    // `destroy()` is documented as idempotent, not terminal, so a re-mount has to
+    // undo it. Without this the adapter stays flagged destroyed and every guard
+    // below bails out: the progress loop never starts, the hls.js import returns
+    // early, and the second source silently produces a black frame forever.
+    this.destroyed = false;
 
     const video = document.createElement('video');
     this.video = video;
@@ -156,6 +174,12 @@ export class Html5Adapter implements PlayerAdapter {
       video.src = media.src;
     }
 
+    // `attachHls` awaits a dynamic import, so a source switch (or a teardown)
+    // can land here after the element has already been discarded. Continuing
+    // would attach tracks to a detached <video> and start a progress loop that
+    // outlives the source.
+    if (this.destroyed) return;
+
     // Sidecar subtitles (WebVTT files listed on the source).
     for (const [index, track] of (media.textTracks ?? []).entries()) {
       const el = document.createElement('track');
@@ -181,6 +205,7 @@ export class Html5Adapter implements PlayerAdapter {
     }
 
     await this.setupThumbnails(media);
+    if (this.destroyed) return;
     this.syncTracks();
     this.startProgressLoop();
   }
@@ -231,16 +256,24 @@ export class Html5Adapter implements PlayerAdapter {
         if (!data.fatal) return; // hls.js recovers non-fatal errors itself
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
           // One silent recovery attempt: a dropped segment on mobile is normal
-          // and should not surface an error card.
+          // and must not put an error card in front of a video that is about to
+          // carry on. The card is only shown if the retry genuinely does not get
+          // the stream moving again — otherwise a viewer is made to press Reload
+          // for a blip the engine had already fixed by itself.
           hls.startLoad();
-          this.sink({
-            status: 'error',
-            error: {
-              kind: 'network',
-              message: 'The stream connection dropped.',
-              retryable: true,
-            },
-          });
+          this.retryTimer = window.setTimeout(() => {
+            if (this.destroyed) return;
+            const stalled = video.paused || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA;
+            if (!stalled) return;
+            this.sink({
+              status: 'error',
+              error: {
+                kind: 'network',
+                message: 'The stream connection dropped.',
+                retryable: true,
+              },
+            });
+          }, HLS_RECOVERY_GRACE_MS);
         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
           hls.recoverMediaError();
           this.sink({
@@ -529,9 +562,15 @@ export class Html5Adapter implements PlayerAdapter {
   seek(seconds: number): void {
     const video = this.video;
     if (!video) return;
-    const max = Number.isFinite(video.duration) ? video.duration : seconds;
+    // A duration of 0 means "not known yet" (metadata still loading), and
+    // Infinity means live. Clamping against 0 in the first case is what made
+    // every seek — including the Continue Watching resume — silently do nothing,
+    // because the clamp collapsed the target to the start of the file.
+    const duration = video.duration;
+    const upperBound = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
+    const target = Math.max(0, Math.min(seconds, upperBound));
     try {
-      video.currentTime = Math.max(0, Math.min(seconds, max));
+      video.currentTime = target;
     } catch {
       /* not seekable yet */
     }
@@ -598,6 +637,7 @@ export class Html5Adapter implements PlayerAdapter {
     this.destroyed = true;
     window.clearTimeout(this.progressTimer);
     window.clearTimeout(this.stallTimer);
+    window.clearTimeout(this.retryTimer);
     this.trackListeners.forEach((off) => off());
     this.trackListeners = [];
     const video = this.video;

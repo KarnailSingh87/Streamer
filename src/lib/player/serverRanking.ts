@@ -203,6 +203,16 @@ export interface ServerHealth {
    * that is observable from outside. null until a real playback measured it.
    */
   startupMs?: number | null;
+  /**
+   * True once this browser has watched a frame from this provider load without
+   * receiving a single message from it — the provider publishes no telemetry we
+   * can hear. Adapters use it (via `expectsProof`) to stop treating silence as
+   * failure; ranking uses it as a weak negative, since a server we cannot see
+   * into is a server whose quality and buffering we can never verify.
+   */
+  silent?: boolean;
+  /** Epoch ms when `silent` was established, so the exemption can expire. */
+  silentAt?: number | null;
   /** Epoch ms of the most recent write, for TTL pruning. */
   updatedAt: number;
 }
@@ -237,6 +247,8 @@ export function readHealth(): HealthLedger {
         lastFailureAt: Number(entry.lastFailureAt) || null,
         lastSuccessAt: Number(entry.lastSuccessAt) || null,
         startupMs: Number(entry.startupMs) > 0 ? Number(entry.startupMs) : null,
+        silent: entry.silent === true,
+        silentAt: Number(entry.silentAt) > 0 ? Number(entry.silentAt) : null,
         updatedAt: Number(entry.updatedAt) || now,
       };
     }
@@ -253,13 +265,20 @@ export function readHealth(): HealthLedger {
  * folded in as a rolling average when supplied, because that is the closest
  * thing to a buffering-speed measurement a cross-origin player permits.
  *
+ * `silent` — pass true when the server's frame loaded but never sent a single
+ * message. That is a property of the *provider*, not of this failure: some
+ * players publish no postMessage API at all yet play perfectly. Remembering it
+ * is what stops the player from failing those servers over forever for failing
+ * to prove something they are incapable of proving. See `expectsProof`.
+ *
  * Returns the updated ledger so callers can re-rank immediately without a
  * second read (and so this stays testable without touching storage).
  */
 export function recordServerOutcome(
   id: string,
   ok: boolean,
-  startupMs?: number | null
+  startupMs?: number | null,
+  silent?: boolean
 ): HealthLedger {
   const ledger = readHealth();
   const now = Date.now();
@@ -285,6 +304,10 @@ export function recordServerOutcome(
     lastFailureAt: ok ? (current.lastFailureAt ?? null) : now,
     lastSuccessAt: ok ? now : (current.lastSuccessAt ?? null),
     startupMs: blended,
+    // A server that spoke up this time is plainly not mute, whatever we
+    // concluded last time, so a success always clears the finding.
+    silent: ok ? false : (silent ?? current.silent ?? false),
+    silentAt: ok ? null : silent ? now : (current.silentAt ?? null),
     updatedAt: now,
   };
   ledger[id] = next;
@@ -304,6 +327,39 @@ export function failureRate(health: ServerHealth | undefined): number {
   const total = health.successes + health.failures;
   if (total === 0) return 0;
   return health.failures / total;
+}
+
+/**
+ * How long a "this provider never reports anything" finding is honoured before
+ * the player gives it another trial.
+ *
+ * Long enough that a permanently mute provider is failed over exactly once and
+ * then trusted, short enough that a provider which has since gained telemetry —
+ * or which has quietly turned into a different, worse front-end behind the same
+ * domain — is re-examined instead of being written off forever.
+ */
+const SILENT_EXEMPT_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Must this server prove it is playing before we trust its frame?
+ *
+ * The only evidence that a third-party frame is really playing — as opposed to
+ * showing a 200 OK "this title is unavailable" page — is a message from inside
+ * it. Waiting for that message is what makes automatic failover work, but a few
+ * providers publish no postMessage API at all and are mute no matter what. Those
+ * get exactly one lesson: once the wait has timed out, the finding is recorded
+ * and the provider is exempt from being asked again, until the finding is old
+ * enough (see `SILENT_EXEMPT_MS`) to be worth re-testing.
+ *
+ * Any server that has ever been *heard* from is always asked to prove itself,
+ * and an exemption never survives a server that starts reporting again.
+ */
+export function expectsProof(id: string, health: HealthLedger | undefined, now = Date.now()): boolean {
+  const entry = health?.[id];
+  // Unseen, or has spoken before: always give it the benefit of the doubt.
+  if (!entry || !entry.silent) return true;
+  const since = entry.silentAt ?? 0;
+  return since <= 0 || now - since > SILENT_EXEMPT_MS;
 }
 
 // ─── Ranking ──────────────────────────────────────────────────────────────────

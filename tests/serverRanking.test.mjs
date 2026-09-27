@@ -13,6 +13,7 @@ import {
   SCORE_WEIGHTS,
   bestServerId,
   explainScore,
+  expectsProof,
   failureRate,
   preferenceRank,
   rankServers,
@@ -254,5 +255,52 @@ describe('stability', () => {
     const text = explainScore(scoreServer(base('vidlink', { live: true, online: true })));
     assert.match(text, /^vidlink = /);
     for (const key of Object.keys(SCORE_WEIGHTS)) assert.match(text, new RegExp(key));
+  });
+});
+
+describe('proof of playback (expectsProof)', () => {
+  // An <iframe> that answers with a 200 OK error page fires `load` exactly like a
+  // real player, so the only way to know a server is actually playing is to wait
+  // for it to say something. These tests pin down who has to speak up, and — just
+  // as importantly — who is never failed over for staying quiet.
+  const NOW = 1_700_000_000_000;
+  const health = (over) => ({
+    successes: 0,
+    failures: 0,
+    lastFailureAt: null,
+    updatedAt: NOW,
+    ...over,
+  });
+
+  it('requires proof from a server it has never seen', () => {
+    assert.equal(expectsProof('vidlink', undefined, NOW), true);
+    assert.equal(expectsProof('vidlink', {}, NOW), true);
+  });
+
+  it('stops asking a provider that has been proven to publish no telemetry', () => {
+    const ledger = { vidfast: health({ silent: true, silentAt: NOW - 1000 }) };
+    assert.equal(expectsProof('vidfast', ledger, NOW), false);
+  });
+
+  it('keeps asking a server that has spoken before, mute finding or not', () => {
+    const ledger = {
+      vidlink: health({ successes: 4, silent: false }),
+      videasy: health({ successes: 2, silent: true, silentAt: NOW - 1000 }),
+    };
+    // A provider that reports is always asked to keep reporting: silence later is
+    // a real signal, not a known limitation.
+    assert.equal(expectsProof('vidlink', ledger, NOW), true);
+    // …and `videasy` is exempt only because it never reports, not despite it.
+    assert.equal(expectsProof('videasy', ledger, NOW), false);
+  });
+
+  it('re-tests the exemption once it is old enough to be worth doubting', () => {
+    const stale = { vidfast: health({ silent: true, silentAt: NOW - 8 * 24 * 3600 * 1000 }) };
+    assert.equal(expectsProof('vidfast', stale, NOW), true);
+  });
+
+  it('has no exemption without a timestamp to age it', () => {
+    const ledger = { vidfast: health({ silent: true, silentAt: null }) };
+    assert.equal(expectsProof('vidfast', ledger, NOW), true);
   });
 });

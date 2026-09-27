@@ -51,6 +51,7 @@ import type { TimeMarker } from '../../lib/player/types';
 import { formatTime } from '../../lib/player/format';
 import type { PlayerT } from '../../lib/player/strings';
 import SeekBar from './SeekBar';
+import type { ServerOption } from './SourceBar';
 import VolumeControl from './VolumeControl';
 import Popover from './Popover';
 import TracksMenu from './TracksMenu';
@@ -149,7 +150,13 @@ export interface PlayerShellProps {
   ratingBadge?: string;
   /** Content warning / advisory text, e.g. "frightening scenes, sexual content, violence, tobacco depictions, alcohol use" */
   contentAdvisory?: string;
-  servers?: Array<{ id: string; name: string; label: string }>;
+  /**
+   * Ranked server list, best first. The same `ServerOption` shape SourceBar
+   * takes, so the island builds the list once and hands the identical array to
+   * both — the stage badge and the below-stage bar can never disagree about
+   * which server is live or which one failed.
+   */
+  servers?: ServerOption[];
   activeServer?: string | null;
   onServer?: (id: string) => void;
 }
@@ -585,16 +592,103 @@ export default function PlayerShell({
     return () => window.removeEventListener('keydown', handleGlobalKey);
   }, [started, hasError, toggleFullscreen, isFullscreen, pseudoFullscreen]);
 
-  // Block any rogue window.open calls from third-party ad scripts while on the player page
+  /**
+   * Popups and tab-hijacking from the third-party player.
+   *
+   * WHY THE OBVIOUS FIX IS NOT ENOUGH: the ad scripts that open those pages run
+   * INSIDE the provider's <iframe>, so they call `window.open` on the *frame's*
+   * own window object. Overriding `window.open` on our top-level window — which
+   * is all we can reach from here — stops our own code from opening popups and
+   * does nothing whatever about theirs. Same-origin policy makes the difference
+   * absolute: we cannot patch a function on a window whose document we cannot
+   * read. (Sandboxing the frame WOULD block the popups, because a sandboxed
+   * frame without `allow-popups` cannot create a top-level browsing context at
+   * all — but these providers detect the attribute and refuse to play, which is
+   * a far worse outcome for the viewer than an occasional popup.)
+   *
+   * So instead of pretending to block them, we make them harmless:
+   *   1. `window.open` on our own window is neutered, so nothing in *our* bundle
+   *      can spawn one either.
+   *   2. When the frame steals focus, we take it straight back. This is the
+   *      symptom the viewer actually feels — the tab switching away mid-movie —
+   *      and refocusing the original window is what closes the tab again.
+   *   3. If the frame navigated OUR page away (popunders sometimes assign
+   *      `top.location`), we put the viewer back where they were instead of
+   *      leaving them on a stranger's site with no way back.
+   */
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // ── 1. Our own popups ──
     const originalOpen = window.open;
-    window.open = function (...args: Parameters<typeof window.open>) {
-      console.warn('Blocked popup attempt:', args[0]);
+    window.open = function blockedOpen() {
       return null;
     };
+
+    const homeHref = window.location.href;
+    /**
+     * Set while a genuine viewer-initiated departure is in flight, so a tap on a
+     * link is not mistaken for the frame stealing the page.
+     *
+     * Deliberately narrow. An earlier version treated *any* pointerdown as intent,
+     * which defeated the guard in the case that matters most: the viewer taps Play
+     * (a tap on our own splash, so the event does reach this document) and the
+     * provider's ad script opens its tab a second or two later, inside the window
+     * the tap had just been granted. Only a real navigation — a link, a form
+     * submit, or a same-page control that explicitly opts in — counts as intent.
+     *
+     * Taps *inside* the provider frame never reach this listener at all, so they
+     * are already treated as suspected hijacks.
+     */
+    let leavingOnPurpose = false;
+    const allowLeave = () => {
+      leavingOnPurpose = true;
+      window.setTimeout(() => {
+        leavingOnPurpose = false;
+      }, 1500);
+    };
+    const onPointerDownCapture = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('a[href], form [type="submit"], [data-allow-leave]')) allowLeave();
+    };
+    document.addEventListener('pointerdown', onPointerDownCapture, true);
+
+    // ── 2. Focus theft ──
+    let refocusing = false;
+    const reclaimFocus = () => {
+      if (refocusing || leavingOnPurpose) return;
+      if (document.visibilityState === 'hidden') return; // a real tab switch
+      refocusing = true;
+      try {
+        window.focus();
+      } catch {
+        /* the browser may refuse; nothing further to try */
+      }
+      window.setTimeout(() => {
+        refocusing = false;
+      }, 400);
+    };
+    window.addEventListener('blur', reclaimFocus);
+    document.addEventListener('visibilitychange', reclaimFocus);
+
+    // ── 3. Top-level navigation by the frame ──
+    const restoreIfHijacked = () => {
+      if (window.location.href === homeHref) return;
+      // `replace` rather than `assign`: the hijack must not become a history
+      // entry, or Back would walk the viewer straight back into the ad page.
+      window.location.replace(homeHref);
+    };
+    window.addEventListener('pageshow', restoreIfHijacked);
+    window.addEventListener('popstate', restoreIfHijacked);
+
     return () => {
       window.open = originalOpen;
+      document.removeEventListener('pointerdown', onPointerDownCapture, true);
+      window.removeEventListener('blur', reclaimFocus);
+      document.removeEventListener('visibilitychange', reclaimFocus);
+      window.removeEventListener('pageshow', restoreIfHijacked);
+      window.removeEventListener('popstate', restoreIfHijacked);
     };
   }, []);
 

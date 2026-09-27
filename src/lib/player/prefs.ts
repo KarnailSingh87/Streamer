@@ -71,16 +71,30 @@ function isBackdrop(v: unknown): v is SubtitleBackdrop {
   return v === 'none' || v === 'shadow' || v === 'box';
 }
 
+/** A fresh copy, so a caller can never mutate the shared default by accident. */
+function defaults(): PlayerPrefs {
+  return { ...DEFAULT_PREFS };
+}
+
 /** Read prefs, repairing anything out of range or from an older shape. */
 export function readPrefs(): PlayerPrefs {
-  if (typeof window === 'undefined' || !window.localStorage) return DEFAULT_PREFS;
+  if (typeof window === 'undefined' || !window.localStorage) return defaults();
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULT_PREFS;
+    if (!raw) return defaults();
     const p = JSON.parse(raw) as Partial<PlayerPrefs>;
+    // 0 is a legitimate stored volume: it is what a viewer who dragged the
+    // slider to the bottom (or pressed Mute) has. Treating it as "missing" and
+    // substituting 1 is what used to happen, so a viewer who deliberately
+    // silenced the player got full volume the next time they opened a title.
+    const volume = Number(p.volume);
+    const level = Number.isFinite(volume) && volume >= 0 ? clamp(volume, 0, 1) : 1;
     return {
-      volume: typeof p.volume === 'number' && Number.isFinite(p.volume) && p.volume > 0 ? clamp(p.volume, 0, 1) : 1,
-      muted: false,
+      volume: level,
+      // Remembered alongside the level so "I muted this" survives a reload. A
+      // stored `muted: true` with a real level is honoured as such; a stored
+      // level of 0 implies the mute, whatever the flag says.
+      muted: p.muted === true || level === 0,
       rate: RATES.includes(Number(p.rate) as (typeof RATES)[number]) ? Number(p.rate) : 1,
       brightness: clamp(Number(p.brightness) || 1, BRIGHTNESS_MIN, BRIGHTNESS_MAX),
       zoom: clamp(Number(p.zoom) || 1, ZOOM_MIN, ZOOM_MAX),
@@ -93,7 +107,7 @@ export function readPrefs(): PlayerPrefs {
       autoplayNext: p.autoplayNext !== false,
     };
   } catch {
-    return DEFAULT_PREFS;
+    return defaults();
   }
 }
 

@@ -19,8 +19,18 @@
 //   • A frame that neither fires `load` NOR posts a message is treated as a
 //     network failure so the shell can fail over to another server. Either signal
 //     alone is enough to call it alive — some providers only ever send one.
+//   • A frame that DOES fire `load` is not yet trusted: a provider that has no
+//     stream for this title answers with a 200 OK error page, and that page fires
+//     `load` just as eagerly as a working player. So `load` only rules out a dead
+//     connection; a message from inside the frame is what proves playback. Until
+//     one arrives we are `loading`, and if none ever does the server is treated
+//     as having failed and the island silently moves on. (Providers that never
+//     post at all are detected once and exempted — see `requireProof`.)
 // Sandbox attributes are omitted because third-party providers detect them and
-// refuse to load or display "Please Disable Sandbox".
+// refuse to load or display "Please Disable Sandbox". The popups their ad scripts
+// open are made harmless in the shell (focus + navigation reclaim) rather than
+// blocked here, because the sandbox token that would block them is exactly the
+// token these providers refuse to load under.
 
 import {
   NO_CAPS,
@@ -34,6 +44,19 @@ import {
  *  to render. Kept short (3.8s) so automatic server failover moves on
  *  instantly to a working server instead of leaving the viewer on a dead/404 frame. */
 const LOAD_TIMEOUT_MS = 3800;
+
+/**
+ * The frame loaded but never said a word by now ⇒ it is showing an error page
+ * or an ad wall, not a video.
+ *
+ * This is the difference between a viewer who watches a film and a viewer who
+ * stares at a provider's "Something went wrong — please try again later" with
+ * no way out: without this wait the load event cancels every alarm and the dead
+ * server is never replaced. Generous enough not to punish a player that is
+ * genuinely still fetching its manifest over a slow connection, and short enough
+ * that the automatic switch still feels instant.
+ */
+const PLAYBACK_PROOF_MS = 6000;
 
 /**
  * Every postMessage dialect these embed players are plausibly listening for.
@@ -152,16 +175,27 @@ export class EmbedAdapter implements PlayerAdapter {
   private frame: HTMLIFrameElement | null = null;
   private sink: SnapshotSink = () => {};
   private loadTimer: number | undefined;
+  private proofTimer: number | undefined;
+  /** Volume-relay retries; all cleared on destroy so none outlives the frame. */
+  private relayTimers: number[] = [];
   private onMessage: ((event: MessageEvent) => void) | null = null;
+  private onLoad: (() => void) | null = null;
   private lastVolume = { volume: 1, muted: false };
   private destroyed = false;
+  /** Whether this mount waits for the frame to prove it is playing. */
+  private requireProof = true;
 
   mount(host: HTMLElement, source: PlayerSource, sink: SnapshotSink): void {
     if (source.engine !== 'embed') return;
     this.sink = sink;
     // Per-mount state: a remount is a fresh frame that has proven nothing yet.
+    // `destroyed` is cleared too, so an adapter that is torn down and mounted
+    // again behaves like a new one instead of refusing to ever load anything.
+    this.destroyed = false;
     this.frameResponded = false;
-    sink({ status: 'loading', error: null });
+    this.lastVolume = { volume: 1, muted: false };
+    this.requireProof = source.requireProof !== false;
+    sink({ status: 'loading', error: null, live: false, telemetry: false });
 
     const frame = document.createElement('iframe');
     this.frame = frame;
@@ -177,28 +211,48 @@ export class EmbedAdapter implements PlayerAdapter {
     // - Settings menu & playback rate/server selection
     // - Entire screen / fullscreen toggle
     // function seamlessly with full browser functionality.
+    // (The IDL property writes the attribute, so this is set exactly once.)
     frame.allow =
       'accelerometer *; autoplay *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *; fullscreen *';
-    frame.setAttribute(
-      'allow',
-      'accelerometer *; autoplay *; clipboard-write *; encrypted-media *; gyroscope *; picture-in-picture *; web-share *; fullscreen *'
-    );
-    frame.setAttribute('allowfullscreen', 'true');
-    frame.setAttribute('webkitallowfullscreen', 'true');
-    frame.setAttribute('mozallowfullscreen', 'true');
     frame.allowFullscreen = true;
 
-    frame.addEventListener('load', () => {
+    this.onLoad = () => {
       window.clearTimeout(this.loadTimer);
-      // A loaded provider frame autoplays from the shell's point of view.
-      sink({ status: 'playing', error: null });
-      this.pushVolume();
-      window.setTimeout(() => this.pushVolume(), 200);
-      window.setTimeout(() => this.pushVolume(), 600);
-      window.setTimeout(() => this.pushVolume(), 1200);
-      window.setTimeout(() => this.pushVolume(), 2500);
-      window.setTimeout(() => this.pushVolume(), 4000);
-    });
+      /**
+       * The document arrived, so the connection works — but a 200 OK error page
+       * gets here too, which is why `load` alone is not treated as playback.
+       *
+       * When proof is required we stay in `loading` until the frame speaks.
+       * When the caller has already established that this provider is mute, the
+       * load event is the best evidence there will ever be, so it is taken as
+       * playback: a provider that can never post a message must not be left
+       * reporting "loading" for ever, or it would never mark itself started
+       * (Continue Watching) and would never reach its own end card.
+       */
+      sink({ status: this.requireProof ? 'loading' : 'playing', error: null });
+      this.scheduleVolumeRelays();
+      /**
+       * Timed from the document arriving, not from the mount: a frame that took
+       * three seconds to load has not had any time yet to boot the player
+       * script that reports in, and failing it for that would be failing it for
+       * our own impatience. A frame that never loads never reaches here — the
+       * load alarm below catches that case first.
+       */
+      if (this.requireProof) {
+        this.proofTimer = window.setTimeout(() => {
+          if (this.destroyed || this.frameResponded) return;
+          sink({
+            status: 'error',
+            error: {
+              kind: 'playback',
+              message: 'This server could not play the title.',
+              retryable: true,
+            },
+          });
+        }, PLAYBACK_PROOF_MS);
+      }
+    };
+    frame.addEventListener('load', this.onLoad);
     host.appendChild(frame);
 
     this.loadTimer = window.setTimeout(() => {
@@ -221,7 +275,12 @@ export class EmbedAdapter implements PlayerAdapter {
       const message = readProviderMessage(event.data);
       if (message && message.state === 'error') {
         window.clearTimeout(this.loadTimer);
+        window.clearTimeout(this.proofTimer);
         sink({
+          // The provider spoke, so it is demonstrably not mute: recorded before
+          // the early return so a failure it reported for itself is never
+          // mistaken for silence.
+          telemetry: true,
           status: 'error',
           error: {
             kind: 'playback',
@@ -234,13 +293,12 @@ export class EmbedAdapter implements PlayerAdapter {
 
       if (!this.frameResponded) {
         this.frameResponded = true;
-        // Proof of life from provider frame cancels the load timeout
+        // Proof of life from the provider frame: the two alarms above are both
+        // answered, so this server is trusted from here on.
         window.clearTimeout(this.loadTimer);
+        window.clearTimeout(this.proofTimer);
         sink({ live: true, status: 'playing', error: null });
-        this.pushVolume();
-        window.setTimeout(() => this.pushVolume(), 300);
-        window.setTimeout(() => this.pushVolume(), 1000);
-        window.setTimeout(() => this.pushVolume(), 2000);
+        this.scheduleVolumeRelays();
       }
 
       if (message) {
@@ -248,6 +306,10 @@ export class EmbedAdapter implements PlayerAdapter {
           this.caps.time = true;
         }
         sink({
+          // Any accepted report is proof the frame has a live player behind it,
+          // and it is what the island reads when a frame fails (see
+          // PlayerSnapshot.telemetry).
+          telemetry: true,
           ...(message.currentTime !== undefined ? { currentTime: message.currentTime } : {}),
           ...(message.duration !== undefined ? { duration: message.duration } : {}),
           ...(message.state ? { status: message.state } : {}),
@@ -255,6 +317,22 @@ export class EmbedAdapter implements PlayerAdapter {
       }
     };
     window.addEventListener('message', this.onMessage);
+  }
+
+  /**
+   * Re-send the volume command a few times after a frame appears.
+   *
+   * A provider's player script is usually still booting when its document fires
+   * `load`, so a command posted once lands on a window with no listener yet. The
+   * repeats are tracked so `destroy()` can cancel them: a relay that fires after
+   * teardown would post into a detached frame for no reason.
+   */
+  private scheduleVolumeRelays(): void {
+    this.relayTimers.push(window.setTimeout(() => this.pushVolume(), 200));
+    this.relayTimers.push(window.setTimeout(() => this.pushVolume(), 600));
+    this.relayTimers.push(window.setTimeout(() => this.pushVolume(), 1200));
+    this.relayTimers.push(window.setTimeout(() => this.pushVolume(), 2500));
+    this.relayTimers.push(window.setTimeout(() => this.pushVolume(), 4000));
   }
 
   private pushVolume(): void {
@@ -307,18 +385,25 @@ export class EmbedAdapter implements PlayerAdapter {
   selectTextTrack(): void {}
 
   setVolume(volume: number, muted: boolean): void {
-    this.lastVolume = { volume, muted };
+    const level = Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : 0));
+    this.lastVolume = { volume: level, muted };
     this.pushVolume();
-    // Echo it so our own slider stays responsive even though we cannot verify
-    // the provider applied it.
-    this.sink({ volume, muted });
+    // Echo the clamped value so our own slider can never display a level the
+    // relay did not actually send.
+    this.sink({ volume: level, muted });
   }
 
   destroy(): void {
     this.destroyed = true;
     window.clearTimeout(this.loadTimer);
+    window.clearTimeout(this.proofTimer);
+    for (const timer of this.relayTimers) window.clearTimeout(timer);
+    this.relayTimers = [];
     if (this.onMessage) window.removeEventListener('message', this.onMessage);
     this.onMessage = null;
+    // The frame's own listener is not on the window, so it has to come off here.
+    if (this.onLoad && this.frame) this.frame.removeEventListener('load', this.onLoad);
+    this.onLoad = null;
     this.frame?.remove();
     this.frame = null;
   }

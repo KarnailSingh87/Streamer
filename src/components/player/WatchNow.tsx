@@ -244,6 +244,7 @@ export default function WatchNow({
     chooseServer,
     useAutoServer,
     reportOutcome,
+    expectsProof,
     resetTried,
     selecting,
     exhausted,
@@ -413,10 +414,18 @@ export default function WatchNow({
       const url = isSeries
         ? `/api/embed/tv/${id}/${current?.season ?? 1}/${current?.episode ?? 1}?server=${server}${suffix}`
         : `/api/embed/movie/${id}?server=${server}${suffix}`;
-      return { engine: 'embed', url, frameKey: `${server}-${reloadKey}` };
+      return {
+        engine: 'embed',
+        url,
+        frameKey: `${server}-${reloadKey}`,
+        // Wait for the frame to prove it is playing before trusting it. A
+        // provider already learned to send nothing is exempted, so it is never
+        // failed over for a silence it is incapable of breaking.
+        requireProof: expectsProof(server),
+      };
     }
     return null;
-  }, [started, engine, media, resumeAt, trailerKey, server, isSeries, id, current, reloadKey, embedResumeAt]);
+  }, [started, engine, media, resumeAt, trailerKey, server, isSeries, id, current, reloadKey, embedResumeAt, expectsProof]);
 
   const sourceKey = [
     engine,
@@ -488,13 +497,14 @@ export default function WatchNow({
     mountedAtRef.current = Date.now();
   }, [sourceKey]);
 
-  // Auto-failover: an embed frame that errors (or never loads — see the embed
-  // adapter's load timeout) advances to the NEXT-BEST server by itself rather
-  // than leaving a dead rectangle. `reportOutcome` records the failure (both for
-  // this title and in the long-lived reliability ledger) and returns the best
-  // server not yet tried for this title; when every server has been tried the
-  // error card stays put (Reload / manual switch) instead of cycling dead frames
-  // forever.
+  // Auto-failover: an embed frame that errors (or never loads, or loads and then
+  // never proves it is playing — all three are detected in the embed adapter)
+  // advances to the NEXT-BEST server by itself rather than leaving a dead
+  // rectangle or a provider's own "please try again later" page on screen.
+  // `reportOutcome` records the failure (both for this title and in the long-lived
+  // reliability ledger) and returns the best server not yet tried for this title;
+  // when every server has been tried the error card stays put (Reload / manual
+  // switch) instead of cycling dead frames forever.
   //
   // The `failoverFor` guard is load-bearing: this effect also re-runs on the
   // commit right after `setServer`, when `snapshot.status` is still the stale
@@ -506,7 +516,14 @@ export default function WatchNow({
     if (engine !== 'embed' || snapshot.status !== 'error' || !server) return;
     if (failoverFor.current === sourceKey) return;
     failoverFor.current = sourceKey;
-    const next = reportOutcome(server, false);
+    // `silent` means exactly one thing: the frame loaded and then said nothing
+    // until the proof timer gave up. It is read from the adapter's own
+    // `telemetry` flag, which arrives in the same patch as the status, so this
+    // is guaranteed to describe the frame that just failed. A 'network' failure
+    // is excluded — the frame never arrived, which says nothing at all about
+    // whether the provider reports.
+    const silent = snapshot.error?.kind === 'playback' && !snapshot.telemetry;
+    const next = reportOutcome(server, false, null, silent);
     if (!next) return;
     setFailedOver(true);
     // Non-intrusive and short: the viewer's video is about to continue, so the

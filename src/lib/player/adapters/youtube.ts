@@ -148,6 +148,14 @@ export class YouTubeAdapter implements PlayerAdapter {
   async mount(host: HTMLElement, source: PlayerSource, sink: SnapshotSink): Promise<void> {
     if (source.engine !== 'youtube') return;
     this.sink = sink;
+    // Undo a previous teardown (see the note in html5.ts): without this the
+    // adapter stays flagged destroyed and bails out of every guard below, so a
+    // remounted source never gets a player.
+    this.destroyed = false;
+    this.started = false;
+    this.captionsChecked = false;
+    this.pendingVolume = null;
+    this.pendingRate = null;
     sink({ status: 'loading', error: null });
 
     let YT: YtNamespace;

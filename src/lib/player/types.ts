@@ -119,6 +119,16 @@ export interface PlayerSnapshot {
   quality: string | null;
   /** Estimated bandwidth in bits/s, when known — drives the slow-network hint. */
   bandwidth: number | null;
+  /**
+   * True once the source has reported something about itself.
+   *
+   * For the embed engine this is the strongest evidence available that a frame
+   * is really playing rather than showing an HTTP 200 error page, so it is
+   * recorded per frame and read at the moment a frame fails: a server whose
+   * frame loaded and then never reported is a provider that publishes no
+   * telemetry, and must not be failed over twice for the same silence.
+   */
+  telemetry: boolean;
   /** True once the engine has proven it is actually playing media. */
   live: boolean;
   /**
@@ -144,6 +154,7 @@ export const EMPTY_SNAPSHOT: PlayerSnapshot = {
   error: null,
   quality: null,
   bandwidth: null,
+  telemetry: false,
   live: false,
   autoplayBlocked: false,
 };
@@ -231,7 +242,26 @@ export interface MediaSource {
 export type PlayerSource =
   | { engine: 'html5'; media: MediaSource; startAt?: number }
   | { engine: 'youtube'; videoId: string; startAt?: number; ccLang?: string | null }
-  | { engine: 'embed'; url: string; frameKey: string };
+  | {
+      engine: 'embed';
+      url: string;
+      frameKey: string;
+      /**
+       * Require the frame to prove it is actually playing (embed engine only).
+       *
+       * A third-party player that answers with a 200 OK error page fires the
+       * iframe's `load` event exactly like a real one does, so `load` cannot
+       * distinguish "playing" from "this title is unavailable here". The only
+       * honest signal is a message from inside the frame, so by default we wait
+       * for one and treat its absence as a dead server.
+       *
+       * A minority of providers never post anything at all, yet play fine. Those
+       * are discovered once (the wait times out, the server is marked as not
+       * reporting) and the caller then passes `false` so those servers are never
+       * failed over for something they cannot help.
+       */
+      requireProof?: boolean;
+    };
 
 /** Patch callback handed to adapters. */
 export type SnapshotSink = (patch: Partial<PlayerSnapshot>) => void;

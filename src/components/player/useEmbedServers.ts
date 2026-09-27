@@ -36,6 +36,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   bestServerId,
+  expectsProof as rankingExpectsProof,
   qualityFor,
   qualityLabel,
   rankServers,
@@ -144,9 +145,31 @@ interface Args {
 }
 
 export function useEmbedServers({ type, id, season, episode, enabled = true, preferred }: Args) {
-  // Seeded with the full list and default best server so playback can start immediately
-  // without a blocking "Finding the best server..." or "Fetching" wait.
-  const initialPick = preferred ?? FALLBACK_SERVERS[0]?.id ?? 'autoembed';
+  /**
+   * Playback must start on the very first commit — a viewer who pressed Play
+   * should never watch a "Finding the best server" pause while a health pass
+   * runs. So a server IS picked before any evidence arrives, and the only
+   * question is which one.
+   *
+   * It used to be `FALLBACK_SERVERS[0]`, i.e. whichever provider happened to be
+   * listed first, which is the choice this file's own header says must not
+   * happen: a hardcoded first entry is not a decision, it is a coin toss, and a
+   * viewer whose network blocks that provider watched a dead frame while the real
+   * selection pass was still running.
+   *
+   * Instead the seed is the best server *by everything this browser already
+   * knows* — the reliability ledger, read synchronously from localStorage, plus
+   * the curated preference and quality order. Same instant start, no network
+   * round-trip, but a server chosen from experience instead of from list order.
+   * A first-time viewer with no history gets the curated best, which is exactly
+   * what the old code did by accident.
+   */
+  const seeded =
+    bestServerId(FALLBACK_SERVERS, { health: readHealth() }) ??
+    FALLBACK_SERVERS[0]?.id ??
+    'vidlink';
+  const initialPick = preferred ?? seeded;
+
   const [servers, setServers] = useState<AvailableServer[]>(FALLBACK_SERVERS);
   const [status, setStatus] = useState<ServerStatus>('ready');
   const [server, setServer] = useState<string | null>(initialPick);
@@ -260,12 +283,14 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
     }
 
     // Do NOT blank out the server when switching episodes.
-    // Retain the current working server, or immediately set the best known server
-    // so the new episode begins loading right away without stalling on a blank screen.
+    // Retain the current working server, or fall back to a remembered choice and
+    // finally to the same seeded pick the first commit used — never to a
+    // hardcoded provider name, which is how a title could end up pinned to one
+    // arbitrary server no matter what the ranking or the ledger had learned.
     setServer((prev) => {
       if (prev) return prev;
       const override = readServerOverride(overrideKeyRef.current);
-      return override || preferredRef.current || 'vidlink';
+      return override || preferredRef.current || initialPick;
     });
 
     const ac = new AbortController();
@@ -321,13 +346,23 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
    * `startupMs` is how long the server took to prove it was playing — the
    * buffering-speed signal that shapes later picks.
    *
+   * `silent` says the frame loaded but never sent a message. That is the one
+   * failure the server is not responsible for, and it is recorded as such so the
+   * next visit stops waiting for proof from a provider that cannot give any (see
+   * `expectsProof` in serverRanking.ts).
+   *
    * Failure is recorded in two places on purpose: `tried` is per-title and
    * resets when the title changes, while the ledger is long-lived and shapes
    * scoring on later visits.
    */
   const reportOutcome = useCallback(
-    (serverId: string, ok: boolean, startupMs?: number | null): string | null => {
-      const ledger = recordServerOutcome(serverId, ok, startupMs);
+    (
+      serverId: string,
+      ok: boolean,
+      startupMs?: number | null,
+      silent?: boolean
+    ): string | null => {
+      const ledger = recordServerOutcome(serverId, ok, startupMs, silent);
       healthRef.current = ledger;
       setHealth(ledger);
       if (ok) return null;
@@ -337,6 +372,17 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
       return next;
     },
     [servers]
+  );
+
+  /**
+   * Whether this server's frame has to post a message before we believe it is
+   * playing. False only for a provider already learned to be mute AND currently
+   * known to be working — see the policy in serverRanking.ts.
+   */
+  const expectsProof = useCallback(
+    (serverId: string | null): boolean =>
+      serverId ? rankingExpectsProof(serverId, healthRef.current) : true,
+    []
   );
 
   /** Manual retry of the current server: give it a genuine fresh attempt. */
@@ -393,6 +439,7 @@ export function useEmbedServers({ type, id, season, episode, enabled = true, pre
     chooseServer,
     useAutoServer,
     reportOutcome,
+    expectsProof,
     resetTried,
     status,
     /** True while a health pass is choosing; drives the "optimising" message. */
