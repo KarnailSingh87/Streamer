@@ -146,6 +146,52 @@
   -ms-overflow-style: none;
 }
 
+/* ── One control bar, ours ───────────────────────────────────────────────────
+   The third-party frame paints its OWN play button, seek bar and logo inside
+   the picture. A cross-origin <iframe> cannot be restyled from here, so the
+   provider's controls cannot be deleted — the only way to stop a second set
+   appearing is to cover them. A permanent gradient does that: it hides their
+   control strip without touching the picture or the letterbox, and it is the
+   same bottom gradient every other engine already draws, so nothing looks
+   bolted on.
+
+   It has to be permanent rather than tied to chrome visibility, because the
+   provider's controls are always painted — they do not care that our bar has
+   faded. Fading the scrim with the bar brought the duplicate straight back. */
+.fp-stage.is-engine-embed .fp-pip::before,
+.fp-stage.is-engine-embed .fp-pip::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Above the frame (z-index auto), below the wake layer (4) and our chrome
+     (8 / 10), so it never intercepts a gesture meant for a control. */
+  z-index: 3;
+  pointer-events: none;
+}
+
+.fp-stage.is-engine-embed .fp-pip::before {
+  bottom: 0;
+  height: 26%;
+  background: var(--fp-scrim);
+}
+
+.fp-stage.is-engine-embed .fp-pip::after {
+  top: 0;
+  height: 18%;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.8), transparent);
+}
+
+/* The frame is never a pointer target on the embed engine. Its own controls are
+   covered by the scrims above, so leaving them clickable would only mean a tap
+   on the picture could reach the provider's page — the route by which a viewer
+   gets navigated off the site mid-episode. Everything the viewer can do, they
+   do from our bar. */
+.fp-stage.is-engine-embed .fp-surface iframe,
+.fp-stage.is-engine-embed .fp-surface .fp-yt {
+  pointer-events: none;
+}
+
 .fp-surface iframe::-webkit-scrollbar,
 .fp-surface iframe.fp-embed-frame::-webkit-scrollbar {
   display: none !important;
@@ -938,7 +984,9 @@
 /* The embed engine now draws the same bar as every other engine, so it needs the
    same scrim. It used to be transparent here because the bar held only a small
    server pill; a full bar of white icons and labels laid directly over the
-   provider's own UI is unreadable without it. */
+   provider's own UI is unreadable without it. Note this one fades with the
+   chrome — the scrim that actually *hides* the provider's controls is the
+   permanent pair on .fp-pip above, which does not fade. */
 .fp-stage.is-engine-embed .fp-controls {
   background: var(--fp-scrim);
   pointer-events: none;

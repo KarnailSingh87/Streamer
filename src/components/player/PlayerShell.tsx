@@ -742,22 +742,26 @@ export default function PlayerShell({
         </div>
 
         {/* Pre-play splash. The play control is a real button, so Enter/Space
-        {/* Wake layer, third-party embed only, and only while our chrome is
-            hidden.
+        {/* Wake layer, third-party embed only, and ALWAYS present while playing.
 
             A cross-origin <iframe> consumes every pointer and mouse event inside
             it: they never reach this document, so the stage's own handlers cannot
-            hear a viewer touching the picture. Without this layer the Netflix
-            chrome we now draw over the embed would be unreachable — there would
-            be no gesture that could ever summon it.
+            hear a viewer moving the pointer across the picture or touching it.
+            Without this layer the Netflix chrome we draw over the embed would be
+            unreachable — there would be no gesture that could ever summon it.
 
-            It is deliberately the *only* thing on screen while the chrome is
-            hidden, and it does nothing but wake. The moment the bars appear this
-            layer is removed, so the provider's frame gets the whole surface back
-            and its own controls work exactly as they do now. The tap therefore
-            costs a viewer nothing: it is spent revealing the controls, the same
-            bargain a phone makes on every video player. */}
-        {started && engine === 'embed' && !hasError && !controlsVisible && (
+            It used to be mounted only while the chrome was hidden, so that the
+            provider's own play button and seek bar were clickable whenever our
+            bar was up. That produced two overlapping sets of controls, and a tap
+            meant for "reveal the controls" landed inside the provider's frame
+            instead — which is how a viewer ends up navigated off the site by a
+            click on the picture. Now it never leaves, so the picture is always
+            ours to draw on: hover reveals the chrome, a tap reveals it, and
+            nothing reaches the frame underneath. The frame is also made
+            pointer-inert in CSS (.fp-stage.is-engine-embed .fp-surface iframe),
+            so this layer is a convenience rather than the only thing standing
+            between a viewer and the provider's UI. */}
+        {started && engine === 'embed' && !hasError && (
           <div
             className="fp-wake-layer"
             aria-hidden="true"
