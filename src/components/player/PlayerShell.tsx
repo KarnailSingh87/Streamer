@@ -258,7 +258,6 @@ export default function PlayerShell({
   }, [netMirrorOpen, holdChrome]);
 
   const tracksBtn = useRef<HTMLButtonElement>(null);
-  const speedBtn = useRef<HTMLButtonElement>(null);
   const overflowBtn = useRef<HTMLButtonElement>(null);
   const episodesBtn = useRef<HTMLButtonElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -1348,30 +1347,13 @@ export default function PlayerShell({
               onTabChange={(tab) => setNetMirrorTab(tab)}
               onClose={() => setNetMirrorOpen(false)}
               quality={currentQuality}
-              onSelectQuality={(q) => {
-                setCurrentQuality(q);
-                announce(`Quality: ${q}`);
-              }}
+              onSelectQuality={(q) => setCurrentQuality(q)}
               audioTracks={snapshot.audioTracks}
-              onSelectAudio={(id) => {
-                selectAudio(id);
-                const track = snapshot.audioTracks.find((t) => t.id === id);
-                if (track) announce(`${t('audio')}: ${track.label || track.lang}`);
-              }}
+              onSelectAudio={selectAudio}
               textTracks={snapshot.textTracks}
-              onSelectText={(id) => {
-                selectText(id);
-                if (!id) announce(`${t('subtitles')}: ${t('off')}`);
-                else {
-                  const track = snapshot.textTracks.find((t) => t.id === id);
-                  if (track) announce(`${t('subtitles')}: ${track.label || track.lang}`);
-                }
-              }}
+              onSelectText={selectText}
               rate={prefs.rate}
-              onSelectRate={(r) => {
-                setRate(r);
-                announce(`${t('speed')}: ${r}x`);
-              }}
+              onSelectRate={setRate}
               subtitleSize={prefs.subtitleSize}
               subtitleBackdrop={prefs.subtitleBackdrop}
               onSubtitleSize={(size) => updatePrefs({ subtitleSize: size })}
