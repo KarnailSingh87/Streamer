@@ -45,6 +45,7 @@ interface Props {
   contentAdvisory?: string;
   initialSeason?: number;
   initialEpisode?: number;
+  hideTitle?: boolean;
 }
 
 const {
@@ -64,11 +65,12 @@ const {
   contentAdvisory,
   initialSeason,
   initialEpisode,
+  hideTitle = false,
 } = Astro.props;
 ---
 
-<section class="detail-section" id="watch" data-reveal aria-labelledby="watch-now-heading">
-  <h2 class="detail-section-title" id="watch-now-heading">Watch Now</h2>
+<section class={hideTitle ? "net77-watch-section" : "detail-section"} id="watch" data-reveal aria-labelledby="watch-now-heading">
+  {!hideTitle && <h2 class="detail-section-title" id="watch-now-heading">Watch Now</h2>}
 
   <!-- client:load, not client:visible: this section is the reason most viewers
        opened the page, and a late-hydrating Play button feels broken. -->

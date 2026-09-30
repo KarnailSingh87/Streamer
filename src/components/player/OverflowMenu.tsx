@@ -12,6 +12,7 @@
 // Everything is rendered from capabilities, so the panel never shows a row that
 // cannot act on the current engine.
 
+import { useState } from 'react';
 import {
   BrightnessIcon,
   FitIcon,
@@ -19,6 +20,7 @@ import {
   NextIcon,
   PipIcon,
   PrevIcon,
+  QualityIcon,
   ReloadIcon,
   SpeedIcon,
   ZoomInIcon,
@@ -75,12 +77,36 @@ export default function OverflowMenu({
   onToggleAutoplayNext,
   onPip,
   onReload,
-  onOpenEpisodes,
   t,
 }: OverflowMenuProps) {
+  const [quality, setQuality] = useState('1080p');
+
   return (
     <div className="fp-overflow">
       <h3 className="fp-menu-title">{t('settings')}</h3>
+
+      {/* Video Quality selection */}
+      <div className="fp-menu-group">
+        <p className="fp-menu-subtitle" id="fp-of-quality">
+          <span className="fp-menu-slider-icon" aria-hidden="true">
+            <QualityIcon size={18} />
+          </span>
+          Quality
+        </p>
+        <div className="fp-segmented fp-segmented-wrap" role="group" aria-labelledby="fp-of-quality">
+          {['Auto', '1080p', '720p', '480p'].map((q) => (
+            <button
+              key={q}
+              type="button"
+              className={`fp-seg-btn${quality === q ? ' is-active' : ''}`}
+              aria-pressed={quality === q}
+              onClick={() => setQuality(q)}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Speed reflowed out of the bar. Rendered as a segmented control rather
           than a nested submenu: one tap instead of two, which matters most on

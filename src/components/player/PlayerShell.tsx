@@ -53,33 +53,23 @@ import type { PlayerT } from '../../lib/player/strings';
 import SeekBar from './SeekBar';
 import VolumeControl from './VolumeControl';
 import Popover from './Popover';
-import TracksMenu from './TracksMenu';
-import SpeedMenu from './SpeedMenu';
-import OverflowMenu from './OverflowMenu';
+import NetMirrorPanel, { type NetMirrorTab } from './NetMirrorPanel';
 import SubtitleLayer from './SubtitleLayer';
 import {
-  AudioTrackIcon,
-  BackIcon,
   BrightnessIcon,
-  CaptionsIcon,
   CloseIcon,
   DialogueIcon,
-  EpisodesIcon,
   ExitFullscreenIcon,
-  FullscreenIcon,
-  MoreIcon,
-  NextIcon,
   PauseIcon,
-  PipIcon,
   PlayIcon,
-  PrevIcon,
   ReplayIcon,
   SkipIcon,
-  SpeedIcon,
-  VerticalDotsIcon,
   VolumeIcon,
   WarningIcon,
   ZoomInIcon,
+  CcBoxIcon,
+  SettingsGearIcon,
+  DiagonalFullscreenIcon,
 } from './Icons';
 
 type Layout = 'compact' | 'regular' | 'wide';
@@ -155,6 +145,11 @@ export interface PlayerShellProps {
   ratingBadge?: string;
   /** Content warning / advisory text, e.g. "frightening scenes, sexual content, violence, tobacco depictions, alcohol use" */
   contentAdvisory?: string;
+  isSeries?: boolean;
+  seriesTitle?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
+  episodeTitle?: string;
 }
 
 /** Read a rem-valued CSS custom property from an element, in pixels. */
@@ -190,6 +185,11 @@ export default function PlayerShell({
   showAutoplayNext,
   ratingBadge,
   contentAdvisory,
+  isSeries,
+  seriesTitle,
+  seasonNumber,
+  episodeNumber,
+  episodeTitle,
 }: PlayerShellProps) {
   const {
     hostRef,
@@ -227,15 +227,55 @@ export default function PlayerShell({
     holdChrome,
     thumbnailAt,
     skipPulse,
+    playPulse,
     slowNetwork,
     offline,
   } = api;
+
+  const [directInteract, setDirectInteract] = useState(false);
+
+  useEffect(() => {
+    if (!directInteract) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDirectInteract(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [directInteract]);
+
+  const [netMirrorOpen, setNetMirrorOpen] = useState(false);
+  const [netMirrorTab, setNetMirrorTab] = useState<NetMirrorTab>('audio');
+  const [currentQuality, setCurrentQuality] = useState('1080p');
+
+  useEffect(() => {
+    if (netMirrorOpen) {
+      holdChrome?.(true);
+    } else {
+      holdChrome?.(false);
+    }
+  }, [netMirrorOpen, holdChrome]);
 
   const tracksBtn = useRef<HTMLButtonElement>(null);
   const speedBtn = useRef<HTMLButtonElement>(null);
   const overflowBtn = useRef<HTMLButtonElement>(null);
   const episodesBtn = useRef<HTMLButtonElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
+
+  const displaySeason =
+    seasonNumber ??
+    (subtitle?.match(/S(\d+)/i)?.[1] ? Number(subtitle.match(/S(\d+)/i)?.[1]) : undefined);
+  const displayEpisode =
+    episodeNumber ??
+    (subtitle?.match(/E(\d+)/i)?.[1] ? Number(subtitle.match(/E(\d+)/i)?.[1]) : undefined);
+  const displayEpisodeTitle =
+    episodeTitle ??
+    (subtitle?.includes('·')
+      ? subtitle.split('·').slice(2).join('·').trim()
+      : undefined) ??
+    (displaySeason ? `Episode ${displayEpisode}` : undefined);
+  const displaySeriesTitle = seriesTitle ?? (displaySeason ? title : undefined);
 
   /**
    * Keep the chrome open while the cursor is resting on it.
@@ -543,6 +583,7 @@ export default function PlayerShell({
     compact ? 'is-compact' : '',
     wide ? 'is-wide' : '',
     engine ? `is-engine-${engine}` : '',
+    directInteract ? 'is-direct-interact' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -761,10 +802,14 @@ export default function PlayerShell({
             pointer-inert in CSS (.fp-stage.is-engine-embed .fp-surface iframe),
             so this layer is a convenience rather than the only thing standing
             between a viewer and the provider's UI. */}
-        {started && engine === 'embed' && !hasError && (
+        {/* Fallback wake / tap layer when gestures are disabled */}
+        {started && !prefs.gestures && !hasError && !ended && !directInteract && (
           <div
             className="fp-wake-layer"
             aria-hidden="true"
+            onClick={() => {
+              if (caps.playback) togglePlay();
+            }}
             onPointerDown={wake}
             onPointerMove={wake}
           />
@@ -815,7 +860,9 @@ export default function PlayerShell({
             because the pointerup path already handles the second click — without
             this the browser's own dblclick would fire a duplicate action and
             select the page text behind the video. */}
-        {started && prefs.gestures && !hasError && !ended && engine !== 'embed' && (
+        {/* Gesture / tap zones across all engines: single-tap centre to play/pause,
+            double-tap left/right to skip 10s, swiping for brightness/volume */}
+        {started && prefs.gestures && !hasError && !ended && !directInteract && (
           <>
             <div
               className="fp-zone fp-zone-left"
@@ -826,7 +873,7 @@ export default function PlayerShell({
               onDoubleClick={(event) => event.preventDefault()}
               aria-hidden="true"
             />
-            {/* Centre tap: only where we can actually toggle playback. */}
+            {/* Centre tap: toggles playback */}
             <div
               className="fp-zone fp-zone-centre"
               onPointerUp={onZoneUp('centre')}
@@ -869,6 +916,27 @@ export default function PlayerShell({
             <SkipIcon size={30} direction={skipPulse} />
             <span>{SKIP_SECONDS}s</span>
           </div>
+        )}
+
+        {/* Play/Pause central animated badge */}
+        {playPulse && (
+          <div className={`fp-play-pulse is-${playPulse}`} key={`pulse-${playPulse}-${Date.now()}`} aria-hidden="true">
+            <span className="fp-play-pulse-icon">
+              {playPulse === 'play' ? <PlayIcon size={42} /> : <PauseIcon size={42} />}
+            </span>
+          </div>
+        )}
+
+        {/* Direct player interaction banner when active */}
+        {directInteract && (
+          <button
+            type="button"
+            className="fp-direct-interact-badge"
+            onClick={() => setDirectInteract(false)}
+            title="Click or press Esc to restore Streamer controls"
+          >
+            <span>Direct Player Active &bull; Click to restore controls</span>
+          </button>
         )}
 
         {/* Buffering. A quiet ring, not a jarring spinner, and only after the
@@ -1026,19 +1094,7 @@ export default function PlayerShell({
               )}
             </div>
 
-            <div className="fp-topbar-right">
-              {/* Dialogue / Subtitles / Audio */}
-              <button
-                ref={tracksBtn}
-                type="button"
-                className={`fp-btn fp-top-btn${menu === 'tracks' ? ' is-open' : ''}`}
-                onClick={() => setMenu(menu === 'tracks' ? null : 'tracks')}
-                aria-label={t('audioAndSubtitles')}
-                title={t('audioAndSubtitles')}
-              >
-                <DialogueIcon size={22} />
-              </button>
-            </div>
+            <div className="fp-topbar-right" />
           </div>
         )}
 
@@ -1082,7 +1138,21 @@ export default function PlayerShell({
               wake();
             }}
           >
-            {/* Full-width seek bar with left timestamp, chapter dots, right timestamp */}
+            {/* Floating Next Episode button positioned above seek bar on right */}
+            {(episodeNav?.hasNext || (isSeries && episodeNav?.onNext)) && (
+              <button
+                type="button"
+                className="fp-next-episode-floating"
+                onClick={episodeNav?.onNext}
+                aria-label={t('nextEpisode')}
+                title={t('nextEpisode')}
+              >
+                <PlayIcon size={14} />
+                <span>Next Episode</span>
+              </button>
+            )}
+
+            {/* Full-width seek bar */}
             {showSeekBar && (
               <SeekBar
                 currentTime={snapshot.currentTime}
@@ -1096,13 +1166,11 @@ export default function PlayerShell({
                 onNudge={seekBy}
                 thumbnailAt={thumbnailAt}
                 t={t}
+                hideSideLabels={true}
               />
             )}
 
-            {/* Netflix's one row: transport on the left, actions on the right.
-                Volume sits with the transport because that is where Netflix puts
-                it, and on the embed engine it is the one control we can actually
-                drive — the value is relayed into the frame. */}
+            {/* Bottom control bar matching Net77 / NetMirror */}
             <div className="fp-bar-row">
               <div className="fp-bar-left">
                 {/* Main Play / Pause */}
@@ -1114,7 +1182,7 @@ export default function PlayerShell({
                     aria-label={primaryLabel}
                     title={`${primaryLabel} (Space)`}
                   >
-                    {ended ? <ReplayIcon size={26} /> : isPlaying ? <PauseIcon size={26} /> : <PlayIcon size={26} />}
+                    {ended ? <ReplayIcon size={24} /> : isPlaying ? <PauseIcon size={24} /> : <PlayIcon size={24} />}
                   </button>
                 )}
 
@@ -1144,6 +1212,7 @@ export default function PlayerShell({
                   </button>
                 )}
 
+                {/* Volume */}
                 {caps.volume !== 'none' && (
                   <VolumeControl
                     volume={prefs.volume}
@@ -1157,69 +1226,105 @@ export default function PlayerShell({
                     t={t}
                   />
                 )}
+
+                {/* Time Display: 26:14 / 55:20 */}
+                <div className="fp-time-display">
+                  <span className="fp-time-current">{formatTime(scrubTime ?? snapshot.currentTime)}</span>
+                  <span className="fp-time-sep">/</span>
+                  <span className="fp-time-duration">{formatTime(snapshot.duration > 0 ? snapshot.duration : 0)}</span>
+                </div>
               </div>
 
+              {/* Center Title & Episode Info */}
+              <div className="fp-bar-center">
+                {displaySeason && displayEpisode ? (
+                  <>
+                    <button
+                      ref={episodesBtn}
+                      type="button"
+                      className={`fp-bar-pill${episodesPanel ? ' fp-bar-pill-btn' : ''}`}
+                      onClick={() => episodesPanel && setMenu(menu === 'episodes' ? null : 'episodes')}
+                      title={episodesPanel ? t('episodes') : undefined}
+                      aria-label={episodesPanel ? t('episodes') : undefined}
+                      tabIndex={episodesPanel ? 0 : -1}
+                    >
+                      S{displaySeason} • E{displayEpisode}
+                    </button>
+                    <span className="fp-bar-ep-title">{displayEpisodeTitle || title}</span>
+                    {displaySeriesTitle && (
+                      <>
+                        <span className="fp-bar-dash">–</span>
+                        <span className="fp-bar-show-title">{displaySeriesTitle}</span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <span className="fp-bar-ep-title">{title}</span>
+                )}
+              </div>
+
+              {/* Right Action Icons (Dialogue, CC, Settings, Fullscreen) */}
               <div className="fp-bar-right">
-                {/* Next episode. Navigation is ours, not the provider's, so this
-                    works identically on every engine. */}
-                {episodeNav?.hasNext && (
-                  <button
-                    type="button"
-                    className="fp-btn fp-top-btn"
-                    onClick={episodeNav.onNext}
-                    aria-label={t('nextEpisode')}
-                    title={t('nextEpisode')}
-                  >
-                    <NextIcon size={22} />
-                  </button>
-                )}
+                {/* Audio & Subtitles Dialog menu */}
+                <button
+                  ref={tracksBtn}
+                  type="button"
+                  className={`fp-btn fp-top-btn${netMirrorOpen && netMirrorTab === 'audio' ? ' is-open' : ''}`}
+                  onClick={() => {
+                    if (netMirrorOpen && netMirrorTab === 'audio') {
+                      setNetMirrorOpen(false);
+                    } else {
+                      setNetMirrorTab('audio');
+                      setNetMirrorOpen(true);
+                      setMenu(null);
+                    }
+                  }}
+                  aria-label={t('audioAndSubtitles')}
+                  title={t('audioAndSubtitles')}
+                >
+                  <DialogueIcon size={22} />
+                </button>
 
-                {/* Episode drawer. Skipped in compact, where the overflow sheet
-                    already carries the same action (OverflowMenu → Episodes) and the
-                    bar has no room for a third secondary control. */}
-                {episodesPanel && !compact && (
-                  <button
-                    ref={episodesBtn}
-                    type="button"
-                    className={`fp-btn fp-top-btn fp-episodes-btn${menu === 'episodes' ? ' is-open' : ''}`}
-                    onClick={() => setMenu(menu === 'episodes' ? null : 'episodes')}
-                    aria-label={t('episodes')}
-                    title={t('episodes')}
-                  >
-                    <EpisodesIcon size={22} />
-                  </button>
-                )}
+                {/* Closed Captions CC button */}
+                <button
+                  type="button"
+                  className={`fp-btn fp-top-btn fp-cc-btn${activeTextTrack || (netMirrorOpen && netMirrorTab === 'subtitles') ? ' is-active' : ''}`}
+                  onClick={() => {
+                    if (netMirrorOpen && netMirrorTab === 'subtitles') {
+                      setNetMirrorOpen(false);
+                    } else {
+                      setNetMirrorTab('subtitles');
+                      setNetMirrorOpen(true);
+                      setMenu(null);
+                    }
+                  }}
+                  aria-label="Subtitles (C)"
+                  title="Subtitles (C)"
+                >
+                  <CcBoxIcon size={22} />
+                </button>
 
-                {/* Playback speed. Gated on `caps.rate` for the same reason as the
-                    overflow sheet: on the third-party embed engine the rate cannot
-                    be set, so offering the control would be a lie. */}
-                {caps.rate && !compact && (
-                  <button
-                    ref={speedBtn}
-                    type="button"
-                    className={`fp-btn fp-top-btn${menu === 'speed' ? ' is-open' : ''}`}
-                    onClick={() => setMenu(menu === 'speed' ? null : 'speed')}
-                    aria-label={t('speed')}
-                    title={t('speed')}
-                  >
-                    <SpeedIcon size={22} />
-                  </button>
-                )}
-
-                {/* Settings with text label below */}
+                {/* Settings Gear */}
                 <button
                   ref={overflowBtn}
                   type="button"
-                  className={`fp-settings-btn${menu === 'overflow' ? ' is-open' : ''}`}
-                  onClick={() => setMenu(menu === 'overflow' ? null : 'overflow')}
+                  className={`fp-btn fp-top-btn${netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed') ? ' is-open' : ''}`}
+                  onClick={() => {
+                    if (netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed')) {
+                      setNetMirrorOpen(false);
+                    } else {
+                      setNetMirrorTab('quality');
+                      setNetMirrorOpen(true);
+                      setMenu(null);
+                    }
+                  }}
                   aria-label={t('settings')}
                   title={t('settings')}
                 >
-                  <VerticalDotsIcon size={20} />
-                  <span className="fp-settings-label">{t('settings')}</span>
+                  <SettingsGearIcon size={22} />
                 </button>
 
-                {/* Fullscreen */}
+                {/* Fullscreen with Diagonal Expand Icon */}
                 <button
                   type="button"
                   className="fp-btn fp-top-btn"
@@ -1230,94 +1335,48 @@ export default function PlayerShell({
                   {isFullscreen || pseudoFullscreen ? (
                     <ExitFullscreenIcon size={22} />
                   ) : (
-                    <FullscreenIcon size={22} />
+                    <DiagonalFullscreenIcon size={22} />
                   )}
                 </button>
               </div>
             </div>
 
-
-            {/* Menus popovers */}
-            <Popover
-              open={menu === 'tracks'}
-              onClose={() => setMenu(null)}
-              label={t('audioAndSubtitles')}
-              triggerRef={tracksBtn}
-              className="fp-menu-top"
-            >
-              <TracksMenu
-                audioTracks={snapshot.audioTracks}
-                textTracks={snapshot.textTracks}
-                canSelectAudio={caps.audioTracks}
-                canSelectText={caps.textTracks}
-                canStyleSubtitles={caps.subtitleStyling}
-                managedExternally={false}
-                subtitleSize={prefs.subtitleSize}
-                subtitleBackdrop={prefs.subtitleBackdrop}
-                onSelectAudio={selectAudio}
-                onSelectText={selectText}
-                onSubtitleSize={(size) => updatePrefs({ subtitleSize: size })}
-                onSubtitleBackdrop={(backdrop) => updatePrefs({ subtitleBackdrop: backdrop })}
-                t={t}
-              />
-            </Popover>
-
-            <Popover
-              open={menu === 'speed'}
-              onClose={() => setMenu(null)}
-              label={t('speed')}
-              triggerRef={speedBtn}
-              className="fp-menu-top"
-            >
-              <SpeedMenu rate={prefs.rate} onSelect={setRate} t={t} />
-            </Popover>
-
-            <Popover
-              open={menu === 'overflow'}
-              onClose={() => setMenu(null)}
-              label="Settings"
-              triggerRef={overflowBtn}
-              className="fp-menu-top"
-            >
-              <OverflowMenu
-                brightness={prefs.brightness}
-                zoom={prefs.zoom}
-                gestures={prefs.gestures}
-                autoplayNext={prefs.autoplayNext}
-                showAutoplayNext={showAutoplayNext}
-                canPip={caps.pip}
-                speed={caps.rate ? { rate: prefs.rate, onRate: setRate } : null}
-                episodeNav={
-                  episodeNav
-                    ? {
-                        hasPrev: episodeNav.hasPrev,
-                        hasNext: episodeNav.hasNext,
-                        onPrev: episodeNav.onPrev,
-                        onNext: episodeNav.onNext,
-                      }
-                    : null
+            {/* NetMirror Settings & Tracks Panel (net77.cc) */}
+            <NetMirrorPanel
+              open={netMirrorOpen}
+              activeTab={netMirrorTab}
+              onTabChange={(tab) => setNetMirrorTab(tab)}
+              onClose={() => setNetMirrorOpen(false)}
+              quality={currentQuality}
+              onSelectQuality={(q) => {
+                setCurrentQuality(q);
+                announce(`Quality: ${q}`);
+              }}
+              audioTracks={snapshot.audioTracks}
+              onSelectAudio={(id) => {
+                selectAudio(id);
+                const track = snapshot.audioTracks.find((t) => t.id === id);
+                if (track) announce(`${t('audio')}: ${track.label || track.lang}`);
+              }}
+              textTracks={snapshot.textTracks}
+              onSelectText={(id) => {
+                selectText(id);
+                if (!id) announce(`${t('subtitles')}: ${t('off')}`);
+                else {
+                  const track = snapshot.textTracks.find((t) => t.id === id);
+                  if (track) announce(`${t('subtitles')}: ${track.label || track.lang}`);
                 }
-                onOpenEpisodes={() => {
-                  setMenu(null);
-                  episodeNav?.onOpenEpisodes();
-                }}
-                onBrightness={(b) => {
-                  setBrightness(b);
-                  flashHud('brightness', Math.round(b * 100));
-                }}
-                onZoom={(z) => {
-                  setZoom(z);
-                  flashHud('zoom', Math.round(z * 100));
-                }}
-                onToggleGestures={toggleGestures}
-                onToggleAutoplayNext={() =>
-                  updatePrefs({ autoplayNext: !prefs.autoplayNext })
-                }
-                onPip={requestPip}
-                onReload={onReload}
-                t={t}
-              />
-            </Popover>
+              }}
+              rate={prefs.rate}
+              onSelectRate={(r) => {
+                setRate(r);
+                announce(`${t('speed')}: ${r}x`);
+              }}
+              subtitleSize={prefs.subtitleSize}
+              subtitleBackdrop={prefs.subtitleBackdrop}
+              onSubtitleSize={(size) => updatePrefs({ subtitleSize: size })}
+              onSubtitleBackdrop={(backdrop) => updatePrefs({ subtitleBackdrop: backdrop })}
+            />
 
             {episodesPanel && (
               <Popover

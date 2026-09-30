@@ -34,6 +34,7 @@ interface SeekBarProps {
   onNudge: (delta: number) => void;
   thumbnailAt: (seconds: number) => { url: string; x: number; y: number; w: number; h: number } | null;
   t: PlayerT;
+  hideSideLabels?: boolean;
 }
 
 /** Preview card width; the tooltip is clamped to stay inside the bar. */
@@ -51,6 +52,7 @@ export default function SeekBar({
   onNudge,
   thumbnailAt,
   t,
+  hideSideLabels = false,
 }: SeekBarProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -178,10 +180,12 @@ export default function SeekBar({
   }, [markers, safeDuration]);
 
   return (
-    <div className="fp-seek-row" dir="ltr">
-      <span className="fp-seek-time fp-seek-time-current" aria-hidden="true">
-        {formatTime(displayTime)}
-      </span>
+    <div className={`fp-seek-row${hideSideLabels ? ' fp-seek-row-full' : ''}`} dir="ltr">
+      {!hideSideLabels && (
+        <span className="fp-seek-time fp-seek-time-current" aria-hidden="true">
+          {formatTime(displayTime)}
+        </span>
+      )}
 
       <div className="fp-seek-track-wrapper">
         {showPreview && (
@@ -258,9 +262,11 @@ export default function SeekBar({
         </div>
       </div>
 
-      <span className="fp-seek-time fp-seek-time-duration" aria-hidden="true">
-        {formatTime(safeDuration > 0 ? safeDuration : 0)}
-      </span>
+      {!hideSideLabels && (
+        <span className="fp-seek-time fp-seek-time-duration" aria-hidden="true">
+          {formatTime(safeDuration > 0 ? safeDuration : 0)}
+        </span>
+      )}
     </div>
   );
 }

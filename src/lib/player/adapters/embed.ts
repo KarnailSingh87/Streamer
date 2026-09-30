@@ -34,11 +34,50 @@
 
 import {
   NO_CAPS,
+  type AudioTrackInfo,
   type PlayerAdapter,
   type PlayerCapabilities,
   type PlayerSource,
   type SnapshotSink,
+  type TextTrackInfo,
 } from '../types';
+
+export const DEFAULT_EMBED_AUDIO_TRACKS: AudioTrackInfo[] = [
+  { id: 'cs', lang: 'cs', label: 'Czech', active: false },
+  { id: 'de', lang: 'de', label: 'German', active: false },
+  { id: 'en', lang: 'en', label: 'English', active: true },
+  { id: 'es', lang: 'es', label: 'Spanish', active: false },
+  { id: 'fr', lang: 'fr', label: 'French', active: false },
+  { id: 'hi', lang: 'hi', label: 'Hindi', active: false },
+  { id: 'hu', lang: 'hu', label: 'Hungarian', active: false },
+  { id: 'id', lang: 'id', label: 'Indonesian', active: false },
+  { id: 'it', lang: 'it', label: 'Italian', active: false },
+  { id: 'pl', lang: 'pl', label: 'Polish', active: false },
+  { id: 'pt', lang: 'pt', label: 'Portuguese', active: false },
+  { id: 'ta', lang: 'ta', label: 'Tamil', active: false },
+  { id: 'ja', lang: 'ja', label: 'Japanese', active: false },
+];
+
+export const DEFAULT_EMBED_TEXT_TRACKS: TextTrackInfo[] = [
+  { id: 'ar', lang: 'ar', label: 'Arabic', kind: 'subtitles', active: false },
+  { id: 'de-cc', lang: 'de', label: 'German [CC]', kind: 'captions', active: false },
+  { id: 'de', lang: 'de', label: 'German', kind: 'subtitles', active: false },
+  { id: 'en-cc', lang: 'en', label: 'English [CC]', kind: 'captions', active: false },
+  { id: 'en', lang: 'en', label: 'English', kind: 'subtitles', active: false },
+  { id: 'es-eu-cc', lang: 'es', label: 'European Spanish [CC]', kind: 'captions', active: false },
+  { id: 'fil', lang: 'fil', label: 'Filipino (Tagalog)', kind: 'subtitles', active: false },
+  { id: 'fr', lang: 'fr', label: 'French', kind: 'subtitles', active: false },
+  { id: 'hi', lang: 'hi', label: 'Hindi', kind: 'subtitles', active: false },
+  { id: 'id', lang: 'id', label: 'Indonesian', kind: 'subtitles', active: false },
+  { id: 'it', lang: 'it', label: 'Italian', kind: 'subtitles', active: false },
+  { id: 'ja', lang: 'ja', label: 'Japanese', kind: 'subtitles', active: false },
+  { id: 'pl', lang: 'pl', label: 'Polish', kind: 'subtitles', active: false },
+  { id: 'pt', lang: 'pt', label: 'Portuguese', kind: 'subtitles', active: false },
+  { id: 'ru', lang: 'ru', label: 'Russian', kind: 'subtitles', active: false },
+  { id: 'es', lang: 'es', label: 'Spanish', kind: 'subtitles', active: false },
+  { id: 'th', lang: 'th', label: 'Thai', kind: 'subtitles', active: false },
+  { id: 'vi', lang: 'vi', label: 'Vietnamese', kind: 'subtitles', active: false },
+];
 
 /** Neither a `load` event nor a postMessage by then ⇒ the provider is not going
  *  to render. Kept short (3.8s) so automatic server failover moves on
@@ -166,12 +205,19 @@ export class EmbedAdapter implements PlayerAdapter {
   caps: PlayerCapabilities = {
     ...NO_CAPS,
     playback: true,
+    seek: true,
+    rate: true,
     volume: 'relay',
+    audioTracks: true,
+    textTracks: true,
+    subtitleStyling: true,
   };
 
   /** True once the frame has answered at all (used for the honesty notice). */
   frameResponded = false;
 
+  private currentAudioTracks: AudioTrackInfo[] = DEFAULT_EMBED_AUDIO_TRACKS.map((t) => ({ ...t }));
+  private currentTextTracks: TextTrackInfo[] = DEFAULT_EMBED_TEXT_TRACKS.map((t) => ({ ...t }));
   private frame: HTMLIFrameElement | null = null;
   private sink: SnapshotSink = () => {};
   private loadTimer: number | undefined;
@@ -195,7 +241,16 @@ export class EmbedAdapter implements PlayerAdapter {
     this.frameResponded = false;
     this.lastVolume = { volume: 1, muted: false };
     this.requireProof = source.requireProof !== false;
-    sink({ status: 'loading', error: null, live: false, telemetry: false });
+    this.currentAudioTracks = DEFAULT_EMBED_AUDIO_TRACKS.map((t) => ({ ...t }));
+    this.currentTextTracks = DEFAULT_EMBED_TEXT_TRACKS.map((t) => ({ ...t }));
+    sink({
+      status: 'loading',
+      error: null,
+      live: false,
+      telemetry: false,
+      audioTracks: this.currentAudioTracks,
+      textTracks: this.currentTextTracks,
+    });
 
     const frame = document.createElement('iframe');
     this.frame = frame;
@@ -226,10 +281,14 @@ export class EmbedAdapter implements PlayerAdapter {
        * When the caller has already established that this provider is mute, the
        * load event is the best evidence there will ever be, so it is taken as
        * playback: a provider that can never post a message must not be left
-       * reporting "loading" for ever, or it would never mark itself started
-       * (Continue Watching) and would never reach its own end card.
+       * reporting "loading" for ever, or it would never mark itself started.
        */
-      sink({ status: this.requireProof ? 'loading' : 'playing', error: null });
+      sink({
+        status: this.requireProof ? 'loading' : 'playing',
+        error: null,
+        audioTracks: this.currentAudioTracks,
+        textTracks: this.currentTextTracks,
+      });
       this.scheduleVolumeRelays();
       /**
        * Timed from the document arriving, not from the mount: a frame that took
@@ -353,12 +412,22 @@ export class EmbedAdapter implements PlayerAdapter {
   private sendPlaybackCommand(play: boolean): void {
     const win = this.frame?.contentWindow;
     if (!win) return;
+    const actionStr = play ? 'play' : 'pause';
     const messages = [
-      { type: 'PLAYER_COMMAND', command: play ? 'play' : 'pause' },
-      { action: play ? 'play' : 'pause' },
-      { event: 'command', func: play ? 'play' : 'pause', args: [] },
-      { context: 'player.js', version: '0.0.11', method: play ? 'play' : 'pause' },
-      { name: play ? 'play' : 'pause', type: 'jwplayer' },
+      { type: 'PLAYER_COMMAND', command: actionStr },
+      { action: actionStr },
+      { event: 'command', func: actionStr, args: [] },
+      { event: 'command', func: play ? 'playVideo' : 'pauseVideo', args: [] },
+      { context: 'player.js', version: '0.0.11', method: actionStr },
+      { name: actionStr, type: 'jwplayer' },
+      { type: actionStr },
+      { event: actionStr },
+      { method: actionStr },
+      { command: actionStr },
+      { api: actionStr },
+      { call: actionStr },
+      { type: `media:${actionStr}` },
+      { type: 'plyr', action: actionStr },
     ];
     for (const msg of messages) {
       try {
@@ -379,10 +448,102 @@ export class EmbedAdapter implements PlayerAdapter {
     this.sendPlaybackCommand(false);
   }
 
-  seek(): void {}
-  setRate(): void {}
-  selectAudioTrack(): void {}
-  selectTextTrack(): void {}
+  seek(seconds: number): void {
+    const win = this.frame?.contentWindow;
+    if (!win) return;
+    const target = Math.max(0, seconds);
+    const messages = [
+      { type: 'PLAYER_COMMAND', command: 'seek', value: target },
+      { action: 'seek', value: target, time: target },
+      { event: 'command', func: 'seekTo', args: [target, true] },
+      { context: 'player.js', version: '0.0.11', method: 'setCurrentTime', value: target },
+      { name: 'seek', type: 'jwplayer', value: target },
+      { type: 'seek', time: target, value: target },
+      { action: 'setCurrentTime', value: target },
+    ];
+    for (const msg of messages) {
+      try {
+        win.postMessage(msg, '*');
+        win.postMessage(JSON.stringify(msg), '*');
+      } catch {}
+    }
+    this.sink({ currentTime: target });
+  }
+
+  setRate(rate: number): void {
+    const win = this.frame?.contentWindow;
+    if (!win) return;
+    const messages = [
+      { type: 'PLAYER_COMMAND', command: 'setPlaybackRate', value: rate },
+      { action: 'setPlaybackRate', value: rate },
+      { event: 'command', func: 'setPlaybackRate', args: [rate] },
+      { context: 'player.js', version: '0.0.11', method: 'setPlaybackRate', value: rate },
+      { name: 'setPlaybackRate', type: 'jwplayer', value: rate },
+    ];
+    for (const msg of messages) {
+      try {
+        win.postMessage(msg, '*');
+        win.postMessage(JSON.stringify(msg), '*');
+      } catch {}
+    }
+    this.sink({ rate });
+  }
+  selectAudioTrack(id: string): void {
+    this.currentAudioTracks = this.currentAudioTracks.map((t) => ({
+      ...t,
+      active: t.id === id,
+    }));
+    const chosen = this.currentAudioTracks.find((t) => t.id === id);
+    const win = this.frame?.contentWindow;
+    if (win && chosen) {
+      const messages = [
+        { type: 'setAudioTrack', track: chosen.lang, id: chosen.id, label: chosen.label },
+        { action: 'setAudioTrack', track: chosen.lang },
+        { type: 'PLAYER_COMMAND', command: 'setAudioTrack', value: chosen.lang },
+        { event: 'command', func: 'setAudioTrack', args: [chosen.lang] },
+        { context: 'player.js', version: '0.0.11', method: 'setAudioTrack', value: chosen.lang },
+        { name: 'setAudioTrack', type: 'jwplayer', value: chosen.lang },
+      ];
+      for (const msg of messages) {
+        try {
+          win.postMessage(msg, '*');
+          win.postMessage(JSON.stringify(msg), '*');
+        } catch {}
+      }
+    }
+    this.sink({ audioTracks: [...this.currentAudioTracks] });
+  }
+
+  selectTextTrack(id: string | null): void {
+    this.currentTextTracks = this.currentTextTracks.map((t) => ({
+      ...t,
+      active: id !== null && t.id === id,
+    }));
+    const chosen = this.currentTextTracks.find((t) => t.id === id);
+    const win = this.frame?.contentWindow;
+    if (win) {
+      const lang = chosen ? chosen.lang : 'off';
+      const label = chosen ? chosen.label || chosen.lang : 'off';
+      const messages = [
+        { type: 'setSubtitle', subtitle: lang, id: id, label: label },
+        { type: 'setSubtitles', lang: lang },
+        { action: 'setSubtitle', subtitle: lang },
+        { action: 'setTrack', track: lang },
+        { type: 'PLAYER_COMMAND', command: 'setSubtitle', value: lang },
+        { event: 'command', func: 'setSubtitle', args: [lang] },
+        { context: 'player.js', version: '0.0.11', method: 'setSubtitle', value: lang },
+        { name: 'setCurrentCaptions', type: 'jwplayer', value: id !== null ? 1 : 0 },
+        { type: 'setClosedCaptions', enabled: id !== null, lang: lang },
+      ];
+      for (const msg of messages) {
+        try {
+          win.postMessage(msg, '*');
+          win.postMessage(JSON.stringify(msg), '*');
+        } catch {}
+      }
+    }
+    this.sink({ textTracks: [...this.currentTextTracks] });
+  }
 
   setVolume(volume: number, muted: boolean): void {
     const level = Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : 0));

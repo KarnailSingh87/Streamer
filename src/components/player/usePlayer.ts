@@ -157,6 +157,8 @@ export interface PlayerApi {
   /** Feedback pulse for double-tap skip: 'forward' | 'back' | null. */
   skipPulse: 'forward' | 'back' | null;
   pulseSkip: (direction: 'forward' | 'back') => void;
+  /** Feedback pulse for play / pause: 'play' | 'pause' | null. */
+  playPulse: 'play' | 'pause' | null;
   /** True when the engine reports a bitrate low enough to warn about. */
   slowNetwork: boolean;
   /**
@@ -207,6 +209,8 @@ export function usePlayer({
   const idleTimer = useRef<number | undefined>(undefined);
   const announceTimer = useRef<number | undefined>(undefined);
   const pulseTimer = useRef<number | undefined>(undefined);
+  const playPulseTimer = useRef<number | undefined>(undefined);
+  const [playPulse, setPlayPulse] = useState<'play' | 'pause' | null>(null);
   const lastToggle = useRef(0);
   const startedRef = useRef(false);
   const endedRef = useRef(false);
@@ -415,16 +419,24 @@ export function usePlayer({
     return () => window.clearTimeout(idleTimer.current);
   }, [holdOpen, wake, sourceKey]);
 
+  const triggerPlayPulse = useCallback((action: 'play' | 'pause') => {
+    setPlayPulse(action);
+    window.clearTimeout(playPulseTimer.current);
+    playPulseTimer.current = window.setTimeout(() => setPlayPulse(null), 550);
+  }, []);
+
   // ── Commands ──────────────────────────────────────────────────────────────
   const play = useCallback(() => {
+    triggerPlayPulse('play');
     void adapterRef.current?.play();
     announce(t('statePlaying'));
-  }, [announce, t]);
+  }, [triggerPlayPulse, announce, t]);
 
   const pause = useCallback(() => {
+    triggerPlayPulse('pause');
     adapterRef.current?.pause();
     announce(t('statePaused'));
-  }, [announce, t]);
+  }, [triggerPlayPulse, announce, t]);
 
   /**
    * Debounced so a double-tap on mobile (or a hammered spacebar) cannot leave
@@ -707,34 +719,34 @@ export function usePlayer({
 
   // ── Keyboard ──────────────────────────────────────────────────────────────
   // Bound to the stage element (not the window) so the player never steals keys
-  // from the page's search field or another island.
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  // Attached to window so Space, K, and arrows work reliably without requiring
+  // stage re-focus, while respecting active text inputs and forms.
   useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      // Let sliders and text inputs use the arrow keys themselves.
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-        if (event.key.startsWith('Arrow')) return;
+      // Let text inputs and sliders use their own keys.
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
       }
       /**
        * A focused control owns Space and Enter. The browser already turns those
        * two keys into a click on the focused button, so handling them here as
-       * well would run the command twice: pressing Space on the play button
-       * would pause and immediately play again, and on the Mute button it would
-       * mute then unmute. The viewer sees a button that does the opposite of
-       * what they asked for. Anything with its own activation behaviour keeps it.
+       * well would run the command twice.
        */
       if (
         target &&
         (event.key === ' ' || event.key === 'Enter') &&
         (target.tagName === 'BUTTON' ||
           target.tagName === 'A' ||
-          target.tagName === 'SELECT' ||
           target.tagName === 'SUMMARY' ||
-          target.isContentEditable ||
           target.getAttribute('role') === 'button' ||
           target.getAttribute('role') === 'menuitem')
       ) {
@@ -823,8 +835,8 @@ export function usePlayer({
       }
     };
 
-    stage.addEventListener('keydown', onKeyDown);
-    return () => stage.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [
     caps.rate,
     caps.seek,
@@ -864,6 +876,7 @@ export function usePlayer({
       window.clearTimeout(idleTimer.current);
       window.clearTimeout(announceTimer.current);
       window.clearTimeout(pulseTimer.current);
+      window.clearTimeout(playPulseTimer.current);
     },
     []
   );
@@ -910,6 +923,7 @@ export function usePlayer({
     thumbnailAt,
     skipPulse,
     pulseSkip,
+    playPulse,
     slowNetwork,
     offline,
   };

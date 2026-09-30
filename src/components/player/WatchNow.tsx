@@ -231,6 +231,7 @@ export default function WatchNow({
   // See serverRanking.ts for the weights behind "best".
   const {
     server,
+    servers,
     setServer,
     retry,
     reportOutcome,
@@ -699,7 +700,7 @@ export default function WatchNow({
   const showUpNext = !!nextTarget && !upNextDismissed && (nearEnd || (endedFlag && !caps.endedSignal));
   const upNextEyebrow = nextTarget ? `S${nextTarget.season} E${nextTarget.episode}` : '';
 
-  const upNextNode =
+  const _upNextNode =
     showUpNext && nextTarget ? (
       <UpNext
         eyebrow={upNextEyebrow}
@@ -833,6 +834,11 @@ export default function WatchNow({
         showAutoplayNext={isSeries}
         ratingBadge={derivedBadge}
         contentAdvisory={derivedAdvisory}
+        isSeries={isSeries}
+        seriesTitle={isSeries ? title : undefined}
+        seasonNumber={isSeries ? current?.season : undefined}
+        episodeNumber={isSeries ? current?.episode : undefined}
+        episodeTitle={isSeries ? currentEpisodeName ?? undefined : undefined}
         episodeNav={
           isSeries
             ? {
@@ -847,12 +853,8 @@ export default function WatchNow({
             : null
         }
         episodesPanel={episodesPanel}
-        upNext={upNextNode}
-        // The picture shrinks into a corner window only while it is still playing
-        // behind the prompt (i.e. the credits are rolling). Once the title has
-        // actually ended the end card owns the stage, and a shrunken video next
-        // to it would just be clutter.
-        upNextShrink={showUpNext && nearEnd}
+        upNext={null}
+        upNextShrink={false}
         endCard={endCardNode}
         toast={toast}
         optimizing={selecting || (engine === 'embed' && started && !server && !exhausted)}
@@ -878,6 +880,38 @@ export default function WatchNow({
           </>
         }
       />
+
+      {/* Net77 Streaming Server Selector */}
+      {engine === 'embed' && servers && servers.length > 0 && (
+        <div className="net77-servers-bar" role="region" aria-label="Streaming Servers">
+          <div className="net77-servers-header">
+            <span className="net77-servers-icon" aria-hidden="true">⚡</span>
+            <span className="net77-servers-title">Servers:</span>
+            {selecting && <span className="net77-servers-status">Switching...</span>}
+          </div>
+          <div className="net77-servers-pills">
+            {servers.map((s, idx) => {
+              const isActive = server === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`net77-server-btn${isActive ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setServer(s.id);
+                    showToast(`Switched to Server ${idx + 1} (${s.name})`);
+                  }}
+                  title={`Switch to ${s.name}`}
+                >
+                  <span className="net77-server-badge">Server {idx + 1}</span>
+                  <span className="net77-server-provider">{s.name}</span>
+                  {isActive && <span className="net77-server-live-dot" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Browsable episode list under the player (series only). Kept out of the
           overlay so a viewer can pick an episode without covering the video.

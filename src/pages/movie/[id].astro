@@ -1,12 +1,10 @@
 ---
 // src/pages/movie/[id].astro — Movie detail page
 import Layout from '../../layouts/Layout.astro';
-import HeroCarousel from '../../components/react/HeroCarousel';
 import WatchNow from '../../components/WatchNow.astro';
 import MovieRail from '../../components/MovieRail.astro';
 import CardFanCarousel from '../../components/ui/card-fan-carousel';
 import { getMovieFull, getOfficialTrailerKey } from '../../lib/tmdb';
-import type { HeroSlide } from '../../lib/tmdb';
 
 const { id } = Astro.params;
 
@@ -77,24 +75,6 @@ const runtime = movie?.runtime
 const releaseYear = movie?.release_date?.slice(0, 4);
 const rating = movie?.vote_average ? Math.round(movie.vote_average * 10) / 10 : null;
 
-// Build a single cinematic hero slide so the detail page opens with the
-// exact same HeroCarousel used on the /movies browse page.
-const heroSlide: HeroSlide | null = movie
-  ? {
-      id: movie.id,
-      mediaType: 'movie',
-      title: movie.title,
-      overview: movie.overview,
-      backdropUrl,
-      posterUrl,
-      releaseYear: releaseYear ?? '',
-      rating: rating ?? 0,
-      genres: (movie.genres ?? []).map((g) => g.name).slice(0, 3),
-      runtime,
-      href: '#watch',
-    }
-  : null;
-
 // Landscape backdrops (this title + recommendations) for the shared gallery.
 const galleryImages: string[] = [
   ...(movie?.backdrop_path ? [movie.backdrop_path] : []),
@@ -144,24 +124,51 @@ const galleryImages: string[] = [
     </div>
   ) : (
     <article>
-      {/* ── Cinematic hero — identical to the /movies browse hero ── */}
-      {heroSlide && (
-        <HeroCarousel client:load slides={[heroSlide]} label={heroSlide.title} />
-      )}
+      {/* ── Net77 Cinema Theater Player (Prominent Top Section) ── */}
+      <section class="net77-cinema-section">
+        <div class="net77-cinema-wrap">
+          <WatchNow
+            hideTitle={true}
+            mediaType="movie"
+            id={movie.id}
+            title={movie.title}
+            backdropUrl={backdropUrl ?? posterUrl}
+            posterUrl={posterUrl}
+            trailerKey={trailerKey}
+            related={relatedForPlayer}
+            genres={(movie.genres ?? []).map((g) => g.name)}
+            rating={rating}
+          />
+        </div>
+      </section>
 
       <div class="detail-body container">
-        {/* ── Watch (shared player section) ── */}
-        <WatchNow
-          mediaType="movie"
-          id={movie.id}
-          title={movie.title}
-          backdropUrl={backdropUrl ?? posterUrl}
-          posterUrl={posterUrl}
-          trailerKey={trailerKey}
-          related={relatedForPlayer}
-          genres={(movie.genres ?? []).map((g) => g.name)}
-          rating={rating}
-        />
+        {/* ── Net77 Movie Details Header ── */}
+        <header class="net77-title-header">
+          <div class="net77-title-main">
+            <h1 class="net77-title-text">{movie.title}</h1>
+            <div class="net77-meta-badges">
+              {releaseYear && <span class="net77-badge net77-badge-year">{releaseYear}</span>}
+              {runtime && <span class="net77-badge net77-badge-runtime">{runtime}</span>}
+              <span class="net77-badge net77-badge-rating">16+</span>
+              <span class="net77-badge net77-badge-quality">4K Ultra HD</span>
+              {rating && (
+                <span class="net77-badge net77-badge-score">
+                  <span class="net77-star">★</span> {rating}
+                </span>
+              )}
+            </div>
+            {movie.tagline && <p class="net77-tagline">"{movie.tagline}"</p>}
+            <p class="net77-overview-text">{movie.overview}</p>
+            {movie.genres && movie.genres.length > 0 && (
+              <div class="net77-genres-list">
+                {movie.genres.map((g) => (
+                  <span class="net77-genre-tag">{g.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        </header>
 
         {/* ── Cast — responsive fan carousel ── */}
         {castCards.length > 0 && (

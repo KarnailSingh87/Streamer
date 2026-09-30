@@ -39,7 +39,8 @@ export function PlayIcon({ size = 22, className }: IconProps) {
 export function PauseIcon({ size = 22, className }: IconProps) {
   return (
     <svg {...base(size, className)} fill="currentColor">
-      <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />
+      <rect x="6" y="5" width="3.8" height="14" rx="0.9" />
+      <rect x="14.2" y="5" width="3.8" height="14" rx="0.9" />
     </svg>
   );
 }
@@ -324,3 +325,55 @@ export function WarningIcon({ size = 22, className }: IconProps) {
     </svg>
   );
 }
+
+export function InteractIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size, className)} {...stroke}>
+      <path d="m3 3 7 18 3-7 7-3L3 3z" />
+      <path d="m13 13 6 6" />
+    </svg>
+  );
+}
+
+export function CcBoxIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size, className)} {...stroke}>
+      <rect x="2.5" y="4.5" width="19" height="15" rx="3.5" />
+      <path
+        d="M9.5 9.5a2.2 2.2 0 0 0-2.2 2.2v0.6a2.2 2.2 0 0 0 2.2 2.2M16.5 9.5a2.2 2.2 0 0 0-2.2 2.2v0.6a2.2 2.2 0 0 0 2.2 2.2"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function SettingsGearIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size, className)} {...stroke}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+export function DiagonalFullscreenIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size, className)} {...stroke}>
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+    </svg>
+  );
+}
+
+export function QualityIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base(size, className)} {...stroke}>
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <path d="M12 12h.01" />
+      <path d="M17 12h.01" />
+      <path d="M7 12h.01" />
+    </svg>
+  );
+}
+
+
