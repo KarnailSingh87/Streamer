@@ -100,7 +100,7 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
 ---
 
 <Layout
-  title={series ? `${series.name}${releaseYear ? ` (${releaseYear})` : ''} — NetMirror` : 'Series'}
+  title={series ? `${series.name}${releaseYear ? ` (${releaseYear})` : ''} — Streamer` : 'Series'}
   description={series?.overview || series?.tagline || 'Series details'}
   image={backdropUrl ?? posterUrl}
 >

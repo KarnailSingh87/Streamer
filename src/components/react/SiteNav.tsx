@@ -175,9 +175,11 @@ export default function SiteNav({ user, pathname = "/" }: Props) {
               >
                 <div className="netflix-avatar-box">
                   <img
-                    src={user?.avatar_url || "https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png"}
+                    src={user?.avatar_url || "https://wallpapers.com/images/hd/netflix-profile-pictures-1000-x-1000-qo9h82134t9nv0j0.jpg"}
                     alt={user?.name || "Profile"}
                     className="netflix-avatar-img"
+                    width={36}
+                    height={36}
                   />
                 </div>
                 <ChevronDown size={14} className={`netflix-chevron${profileMenuOpen ? " is-open" : ""}`} />
@@ -453,17 +455,37 @@ export default function SiteNav({ user, pathname = "/" }: Props) {
         }
 
         .netflix-avatar-box {
-          width: 32px;
-          height: 32px;
-          border-radius: 4px;
+          width: 36px;
+          height: 36px;
+          min-width: 36px;
+          min-height: 36px;
+          border-radius: 6px;
           overflow: hidden;
           background: #e50914;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          box-shadow: 0 2px 8px rgba(229, 9, 20, 0.5);
         }
 
         .netflix-avatar-img {
-          width: 100%;
-          height: 100%;
+          width: 36px;
+          height: 36px;
+          min-width: 36px;
+          min-height: 36px;
+          max-width: 36px;
+          max-height: 36px;
           object-fit: cover;
+          display: block;
+        }
+
+        .netflix-avatar-smiley {
+          width: 28px;
+          height: 28px;
+          flex-shrink: 0;
+          pointer-events: none;
+          user-select: none;
         }
 
         .netflix-chevron {
