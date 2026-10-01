@@ -350,7 +350,13 @@ export class EmbedAdapter implements PlayerAdapter {
         return;
       }
 
-      if (!this.frameResponded) {
+      const hasPlaybackProof =
+        message &&
+        (message.state === 'playing' ||
+          (message.currentTime !== undefined && message.currentTime > 0) ||
+          (message.duration !== undefined && message.duration > 0));
+
+      if (!this.frameResponded && hasPlaybackProof) {
         this.frameResponded = true;
         // Proof of life from the provider frame: the two alarms above are both
         // answered, so this server is trusted from here on.

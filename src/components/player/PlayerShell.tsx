@@ -150,6 +150,18 @@ export interface PlayerShellProps {
   seasonNumber?: number;
   episodeNumber?: number;
   episodeTitle?: string;
+  servers?: Array<{
+    id: string;
+    name: string;
+    label: string;
+    qualityLabel?: string | null;
+    online?: boolean;
+    verified?: boolean;
+    live?: boolean;
+    failed?: boolean;
+  }>;
+  activeServer?: string | null;
+  onSelectServer?: (id: string) => void;
 }
 
 /** Read a rem-valued CSS custom property from an element, in pixels. */
@@ -190,6 +202,9 @@ export default function PlayerShell({
   seasonNumber,
   episodeNumber,
   episodeTitle,
+  servers = [],
+  activeServer,
+  onSelectServer,
 }: PlayerShellProps) {
   const {
     hostRef,
@@ -1340,26 +1355,6 @@ export default function PlayerShell({
               </div>
             </div>
 
-            {/* NetMirror Settings & Tracks Panel (net77.cc) */}
-            <NetMirrorPanel
-              open={netMirrorOpen}
-              activeTab={netMirrorTab}
-              onTabChange={(tab) => setNetMirrorTab(tab)}
-              onClose={() => setNetMirrorOpen(false)}
-              quality={currentQuality}
-              onSelectQuality={(q) => setCurrentQuality(q)}
-              audioTracks={snapshot.audioTracks}
-              onSelectAudio={selectAudio}
-              textTracks={snapshot.textTracks}
-              onSelectText={selectText}
-              rate={prefs.rate}
-              onSelectRate={setRate}
-              subtitleSize={prefs.subtitleSize}
-              subtitleBackdrop={prefs.subtitleBackdrop}
-              onSubtitleSize={(size) => updatePrefs({ subtitleSize: size })}
-              onSubtitleBackdrop={(backdrop) => updatePrefs({ subtitleBackdrop: backdrop })}
-            />
-
             {episodesPanel && (
               <Popover
                 open={menu === 'episodes'}
@@ -1372,6 +1367,31 @@ export default function PlayerShell({
               </Popover>
             )}
           </div>
+        )}
+
+        {/* NetMirror Settings & Tracks Panel (net77.cc style right drawer at stage level) */}
+        {started && !hasError && (
+          <NetMirrorPanel
+            open={netMirrorOpen}
+            activeTab={netMirrorTab}
+            onTabChange={(tab) => setNetMirrorTab(tab)}
+            onClose={() => setNetMirrorOpen(false)}
+            servers={servers}
+            activeServer={activeServer}
+            onSelectServer={onSelectServer}
+            quality={currentQuality}
+            onSelectQuality={(q) => setCurrentQuality(q)}
+            audioTracks={snapshot.audioTracks}
+            onSelectAudio={selectAudio}
+            textTracks={snapshot.textTracks}
+            onSelectText={selectText}
+            rate={prefs.rate}
+            onSelectRate={setRate}
+            subtitleSize={prefs.subtitleSize}
+            subtitleBackdrop={prefs.subtitleBackdrop}
+            onSubtitleSize={(size) => updatePrefs({ subtitleSize: size })}
+            onSubtitleBackdrop={(backdrop) => updatePrefs({ subtitleBackdrop: backdrop })}
+          />
         )}
 
         {/* Single live region for state changes: "Paused", "Muted", "10 seconds

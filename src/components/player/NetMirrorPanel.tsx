@@ -61,22 +61,29 @@ export default function NetMirrorPanel({
   // Close on Escape or click outside
   useEffect(() => {
     if (!open) return;
+    const openedAt = Date.now();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
       }
     };
-    const onDown = (e: PointerEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+    const onDown = (e: MouseEvent | PointerEvent) => {
+      // Ignore interactions during the initial opening gesture
+      if (Date.now() - openedAt < 180) return;
+      const target = e.target as HTMLElement | null;
+      if (panelRef.current && !panelRef.current.contains(target as Node)) {
+        if (target?.closest?.('.fp-top-btn, .fp-btn, .fp-settings-btn')) {
+          return;
+        }
         onClose();
       }
     };
     window.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('pointerdown', onDown);
     return () => {
       window.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('pointerdown', onDown);
     };
   }, [open, onClose]);
 
