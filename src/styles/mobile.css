@@ -81,8 +81,8 @@
   main:has(.nf-hero),
   main:has(.detail-hero) { padding-top: 0; }
 
-  /* Hero shorter on tablet */
-  .nf-hero { min-height: 56svh !important; max-height: 56svh !important; }
+  /* Hero on tablet: generous height to avoid text clipping and button overlap */
+  .nf-hero { min-height: 75svh; max-height: 85svh; }
 
   /* Poster cards */
   .poster-card { min-width: 140px; max-width: 160px; }

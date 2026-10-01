@@ -158,38 +158,15 @@
    It has to be permanent rather than tied to chrome visibility, because the
    provider's controls are always painted — they do not care that our bar has
    faded. Fading the scrim with the bar brought the duplicate straight back. */
+/* The embed engine iframe needs direct pointer interaction so the user
+   can tap play, toggle unmute, or use the provider's native streaming UI. */
 .fp-stage.is-engine-embed .fp-pip::before,
 .fp-stage.is-engine-embed .fp-pip::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Above the frame (z-index auto), below the wake layer (4) and our chrome
-     (8 / 10), so it never intercepts a gesture meant for a control. */
-  z-index: 3;
-  pointer-events: none;
+  display: none !important;
 }
 
-.fp-stage.is-engine-embed .fp-pip::before {
-  bottom: 0;
-  height: 26%;
-  background: var(--fp-scrim);
-}
-
-.fp-stage.is-engine-embed .fp-pip::after {
-  top: 0;
-  height: 18%;
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0.8), transparent);
-}
-
-/* The frame is never a pointer target on the embed engine. Its own controls are
-   covered by the scrims above, so leaving them clickable would only mean a tap
-   on the picture could reach the provider's page — the route by which a viewer
-   gets navigated off the site mid-episode. Everything the viewer can do, they
-   do from our bar. */
-.fp-stage.is-engine-embed .fp-surface iframe,
-.fp-stage.is-engine-embed .fp-surface .fp-yt {
-  pointer-events: none;
+.fp-stage.is-engine-embed .fp-surface iframe {
+  pointer-events: auto !important;
 }
 
 /* Direct player interaction mode: allow pointer events into iframe */
@@ -601,7 +578,7 @@
 /* Direct player interaction banner */
 .fp-direct-interact-badge {
   position: absolute;
-  top: 1.25rem;
+  top: 4.75rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 12;
@@ -857,6 +834,8 @@
   align-items: center;
   gap: 0.85rem;
   min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .fp-top-close {
@@ -870,6 +849,7 @@
   background: transparent;
   border: 0;
   cursor: pointer;
+  flex-shrink: 0;
   transition: background 150ms ease, transform 150ms ease;
 }
 
@@ -883,6 +863,8 @@
   align-items: center;
   gap: 0.75rem;
   flex-wrap: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .fp-rating-pill {
@@ -899,6 +881,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .fp-rating-advisory {
@@ -909,11 +892,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 55vw;
+  max-width: 28vw;
+  flex-shrink: 1;
+  min-width: 0;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
 }
 
-@media (max-width: 48rem) {
+@media (max-width: 56rem) {
   .fp-rating-advisory {
     display: none;
   }
@@ -923,6 +908,43 @@
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  flex-shrink: 0;
+}
+
+.fp-top-server-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.8rem;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 150ms ease;
+}
+
+.fp-top-server-btn:hover {
+  background: rgba(229, 9, 20, 0.85);
+  border-color: #e50914;
+}
+
+.fp-top-server-btn.is-open {
+  background: #e50914;
+  border-color: #e50914;
+}
+
+.fp-top-server-icon {
+  font-size: 0.85rem;
+  color: #e50914;
+}
+
+.fp-top-server-btn:hover .fp-top-server-icon,
+.fp-top-server-btn.is-open .fp-top-server-icon {
+  color: #ffffff;
 }
 
 .fp-top-btn {
@@ -982,6 +1004,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  max-width: 320px;
+  flex-shrink: 1;
 }
 
 .fp-topbar-title {
@@ -3923,4 +3947,24 @@ button.fp-bar-pill:active {
   color: #ffffff;
   font-weight: 600;
 }
+
+.nm-server-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.nm-server-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 

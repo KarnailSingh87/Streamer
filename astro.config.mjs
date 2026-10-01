@@ -29,6 +29,9 @@ if (isNode) {
 const noHmr = process.env.NO_HMR === '1';
 
 export default defineConfig({
+  devToolbar: {
+    enabled: false,
+  },
   server: {
     host: '0.0.0.0',
   },

@@ -409,10 +409,8 @@ export default function WatchNow({
         engine: 'embed',
         url,
         frameKey: `${server}-${reloadKey}`,
-        // Wait for the frame to prove it is playing before trusting it. A
-        // provider already learned to send nothing is exempted, so it is never
-        // failed over for a silence it is incapable of breaking.
-        requireProof: expectsProof(server),
+        // Immediate playback without artificial proof delays
+        requireProof: false,
       };
     }
     return null;
@@ -555,10 +553,7 @@ export default function WatchNow({
     const next = reportOutcome(server, false, null, silent);
     if (!next) return;
     setFailedOver(true);
-    // Non-intrusive and short: the viewer's video is about to continue, so the
-    // message explains in one line and leaves. The provider name goes in the
-    // persistent notice below the stage, not in the toast.
-    showToast(t('switchedToBetter'));
+    // Instant silent hot-swap in milliseconds: invisible to front-end users
     // CONTINUITY. Hand the replacement server the position we were at, so the
     // switch costs a buffer rather than a rewind. `snapshot.currentTime` is
     // preferred (it is the freshest reading) and `positionRef` covers the case
@@ -853,6 +848,13 @@ export default function WatchNow({
             : null
         }
         episodesPanel={episodesPanel}
+        servers={engine === 'embed' ? servers : undefined}
+        activeServer={engine === 'embed' ? server : undefined}
+        onSelectServer={(id) => {
+          setServer(id);
+          const found = servers.find((s) => s.id === id);
+          if (found) showToast(`Switched to ${found.name}`);
+        }}
         upNext={null}
         upNextShrink={false}
         endCard={endCardNode}

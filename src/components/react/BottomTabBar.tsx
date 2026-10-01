@@ -229,7 +229,7 @@ export default function BottomTabBar() {
             height: 16px;
             padding: 0 3px;
             border-radius: 9999px;
-            background: linear-gradient(135deg, #6366f1, #a855f7);
+            background: #e50914;
             color: #fff;
             font-size: 0.5625rem;
             font-weight: 700;

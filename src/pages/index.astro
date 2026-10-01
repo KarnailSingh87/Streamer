@@ -5,10 +5,6 @@ import MovieRail from '../components/MovieRail.astro';
 import Top10Rail from '../components/Top10Rail.astro';
 import HeroCarousel from '../components/react/HeroCarousel';
 import ContinueWatchingRail from '../components/react/ContinueWatchingRail';
-import MoodMatch from '../components/react/MoodMatch';
-import TestimonialsEditorial from '../components/ui/editorial-testimonial';
-import CinematicGallery from '../components/CinematicGallery.astro';
-import FeaturedGallery from '../components/react/FeaturedGallery';
 import { getHomePageData, getAllPlatformTop10 } from '../lib/tmdb';
 
 let data: Awaited<ReturnType<typeof getHomePageData>> | null = null;
@@ -38,13 +34,6 @@ const netflixTop10 = platformTop10?.netflixTop10 ?? [];
 const primeTop10   = platformTop10?.primeTop10   ?? [];
 const hotstarTop10 = platformTop10?.hotstarTop10 ?? [];
 const appletvTop10 = platformTop10?.appletvTop10 ?? [];
-
-// Landscape backdrops for the lightweight cinematic gallery.
-const galleryImages: string[] = [...trending, ...netflixTop10, ...topRated, ...nowPlaying]
-  .map((i: any) => i?.backdrop_path)
-  .filter(Boolean)
-  .slice(0, 12)
-  .map((p: string) => `https://image.tmdb.org/t/p/w780${p}`);
 
 const hasContent = heroAll.length > 0 || trending.length > 0;
 ---
@@ -117,15 +106,6 @@ const hasContent = heroAll.length > 0 || trending.length > 0;
         {/* ── Continue Watching (renders only when the user has saved items) ── */}
         <div data-reveal>
           <ContinueWatchingRail client:idle title="Continue Watching" />
-          {/* Custom Add-on Features — AI mood + time matching (all viewports).
-              client:visible rather than client:only: every client:only island in
-              a page makes Astro's view-transition router reload the whole target
-              page in a hidden iframe before it can swap. This component reads
-              window/localStorage only inside effects, so it server-renders
-              safely. */}
-          <div class="mood-block">
-            <MoodMatch client:visible />
-          </div>
         </div>
 
         {trending.length > 0 && (
@@ -191,86 +171,6 @@ const hasContent = heroAll.length > 0 || trending.length > 0;
             <MovieRail title="Coming Soon" viewAllHref="/movies?sort=release_date.desc" items={recentlyAdded} mediaType="movie" />
           </div>
         )}
-
-        {/* ── Galleries ──
-             FeaturedGallery (WebGL) comes first, then the zero-JavaScript
-             CinematicGallery. GalleryShowcase was removed: it was a second
-             Three.js canvas showing the same demo stills.
-
-             client:visible, not client:only: client:only made the view-transition
-             router reload the whole target page in a hidden iframe on every
-             navigation, and it pulled the ~870 kB three.js bundle onto the
-             critical path of every page load. */}
-        <FeaturedGallery client:idle images={galleryImages} />
-        <CinematicGallery images={galleryImages} />
-
-        {/* ── Testimonials — editorial carousel ── */}
-        <section class="container home-editorial-block" data-reveal aria-labelledby="testimonials-heading">
-          <div class="feat-head">
-            <span class="feat-eyebrow">Testimonials</span>
-            <h2 class="feat-title" id="testimonials-heading">Loved by movie fans everywhere</h2>
-            <p class="feat-sub">What viewers say about discovering and streaming with Streamer.</p>
-          </div>
-          <TestimonialsEditorial client:visible variant="testimonials" />
-        </section>
-
-
-        {/* ── FAQ Section ── */}
-        <div class="faq-block container" data-reveal>
-          <div class="faq-header">
-            <span class="faq-eyebrow">Got questions?</span>
-            <h2 class="faq-title">Frequently Asked Questions</h2>
-            <p class="faq-subtitle">Everything you need to know about Streamer streaming.</p>
-          </div>
-
-          <div class="faq-list" role="list">
-
-            {[
-              {
-                q: "What is Streamer?",
-                a: "Streamer is a comprehensive online web streaming platform dedicated to bringing you the best in global entertainment. We offer a massive library of high-definition films, trending web series, and exclusive shows that you can stream instantly from any device."
-              },
-              {
-                q: "Is Streamer similar to platforms like Netflix, Jio, and Hotstar?",
-                a: "Yes! Much like Netflix, Disney+ Hotstar, and JioCinema, Streamer provides a premium web streaming experience for on-demand entertainment. We focus on delivering a diverse catalog of movies and TV series with high-speed playback, making us a top alternative for binge-watchers."
-              },
-              {
-                q: "What kind of films and series can I watch on Streamer?",
-                a: "Our extensive catalog covers every major genre. You can stream action-packed Hollywood blockbusters, Bollywood hits, critically acclaimed indie films, and binge-worthy web series. Whether you are looking for spine-chilling horror or a lighthearted romantic comedy, Streamer has something for everyone."
-              },
-              {
-                q: "Do I need to download an app to stream content?",
-                a: "No app downloads are required. Streamer is optimized for seamless online web streaming directly through your browser. You can watch your favorite films and series instantly on your desktop, laptop, tablet, or smartphone."
-              },
-              {
-                q: "Can I watch movies and web series in HD quality?",
-                a: "Absolutely. We believe that great films and visually stunning series deserve top-tier picture quality. The majority of the content on Streamer is available to stream in crystal-clear 1080p Full HD and select 4K resolutions, ensuring a theater-like experience at home."
-              },
-              {
-                q: "Does Streamer offer regional and international content?",
-                a: "Yes. Just like Jio and Hotstar, we understand the importance of diverse, regional content. Our platform features a wide variety of international cinema, dubbed web series, and regional films to cater to our global audience."
-              },
-              {
-                q: "Are subtitles available while web streaming?",
-                a: "Yes, we provide multi-language subtitles and closed captions (CC) for a vast majority of our films and series. You can easily toggle subtitles on or off directly within the video player while streaming."
-              }
-            ].map((item, i) => (
-              <details class="faq-item" role="listitem">
-                <summary class="faq-q">
-                  <span class="faq-q-num">{String(i + 1).padStart(2, '0')}</span>
-                  <span class="faq-q-text">{item.q}</span>
-                  <span class="faq-chevron" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                  </span>
-                </summary>
-                <div class="faq-a">
-                  <p>{item.a}</p>
-                </div>
-              </details>
-            ))}
-
-          </div>
-        </div>
 
       </div>
     </>

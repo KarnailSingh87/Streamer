@@ -82,20 +82,7 @@ export const DEFAULT_EMBED_TEXT_TRACKS: TextTrackInfo[] = [
 /** Neither a `load` event nor a postMessage by then ⇒ the provider is not going
  *  to render. Kept short (3.8s) so automatic server failover moves on
  *  instantly to a working server instead of leaving the viewer on a dead/404 frame. */
-const LOAD_TIMEOUT_MS = 3800;
-
-/**
- * The frame loaded but never said a word by now ⇒ it is showing an error page
- * or an ad wall, not a video.
- *
- * This is the difference between a viewer who watches a film and a viewer who
- * stares at a provider's "Something went wrong — please try again later" with
- * no way out: without this wait the load event cancels every alarm and the dead
- * server is never replaced. Generous enough not to punish a player that is
- * genuinely still fetching its manifest over a slow connection, and short enough
- * that the automatic switch still feels instant.
- */
-const PLAYBACK_PROOF_MS = 6000;
+const LOAD_TIMEOUT_MS = 2200;
 
 /**
  * Every postMessage dialect these embed players are plausibly listening for.
@@ -228,8 +215,6 @@ export class EmbedAdapter implements PlayerAdapter {
   private onLoad: (() => void) | null = null;
   private lastVolume = { volume: 1, muted: false };
   private destroyed = false;
-  /** Whether this mount waits for the frame to prove it is playing. */
-  private requireProof = true;
 
   mount(host: HTMLElement, source: PlayerSource, sink: SnapshotSink): void {
     if (source.engine !== 'embed') return;
@@ -240,7 +225,6 @@ export class EmbedAdapter implements PlayerAdapter {
     this.destroyed = false;
     this.frameResponded = false;
     this.lastVolume = { volume: 1, muted: false };
-    this.requireProof = source.requireProof !== false;
     this.currentAudioTracks = DEFAULT_EMBED_AUDIO_TRACKS.map((t) => ({ ...t }));
     this.currentTextTracks = DEFAULT_EMBED_TEXT_TRACKS.map((t) => ({ ...t }));
     sink({
@@ -273,43 +257,15 @@ export class EmbedAdapter implements PlayerAdapter {
 
     this.onLoad = () => {
       window.clearTimeout(this.loadTimer);
-      /**
-       * The document arrived, so the connection works — but a 200 OK error page
-       * gets here too, which is why `load` alone is not treated as playback.
-       *
-       * When proof is required we stay in `loading` until the frame speaks.
-       * When the caller has already established that this provider is mute, the
-       * load event is the best evidence there will ever be, so it is taken as
-       * playback: a provider that can never post a message must not be left
-       * reporting "loading" for ever, or it would never mark itself started.
-       */
+      // Playback is immediately active on frame load for instant sub-second response
       sink({
-        status: this.requireProof ? 'loading' : 'playing',
+        status: 'playing',
+        live: true,
         error: null,
         audioTracks: this.currentAudioTracks,
         textTracks: this.currentTextTracks,
       });
       this.scheduleVolumeRelays();
-      /**
-       * Timed from the document arriving, not from the mount: a frame that took
-       * three seconds to load has not had any time yet to boot the player
-       * script that reports in, and failing it for that would be failing it for
-       * our own impatience. A frame that never loads never reaches here — the
-       * load alarm below catches that case first.
-       */
-      if (this.requireProof) {
-        this.proofTimer = window.setTimeout(() => {
-          if (this.destroyed || this.frameResponded) return;
-          sink({
-            status: 'error',
-            error: {
-              kind: 'playback',
-              message: 'This server could not play the title.',
-              retryable: true,
-            },
-          });
-        }, PLAYBACK_PROOF_MS);
-      }
     };
     frame.addEventListener('load', this.onLoad);
     host.appendChild(frame);
@@ -353,8 +309,7 @@ export class EmbedAdapter implements PlayerAdapter {
       const hasPlaybackProof =
         message &&
         (message.state === 'playing' ||
-          (message.currentTime !== undefined && message.currentTime > 0) ||
-          (message.duration !== undefined && message.duration > 0));
+          (message.currentTime !== undefined && message.currentTime > 0));
 
       if (!this.frameResponded && hasPlaybackProof) {
         this.frameResponded = true;

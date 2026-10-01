@@ -6,9 +6,7 @@ import CinematicFooter from '../components/react/CinematicFooter';
 import BackToTop from '../components/react/BackToTop';
 import BottomTabBar from '../components/react/BottomTabBar';
 import CookieConsent from '../components/react/CookieConsent';
-import CinematicGallery from '../components/CinematicGallery.astro';
-import FeaturedGallery from '../components/react/FeaturedGallery';
-import Testimonials from '../components/react/Testimonials';
+import NetMirrorModal from '../components/react/NetMirrorModal';
 import '../styles/global.css';
 // Poster card (poster-card-* / pc-*) — shared by PosterCard.astro and the React
 // islands (instant search) so both render the exact same card.
@@ -103,9 +101,15 @@ const isHome = Astro.url.pathname === '/';
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#050811" />
 
-    <!-- Preconnect -->
+    <!-- Preconnect & DNS prefetch for lightning fast video loading -->
     <link rel="preconnect" href="https://image.tmdb.org" />
     <link rel="preconnect" href="https://api.tmdb.org" />
+    <link rel="preconnect" href="https://autoembed.co" crossorigin />
+    <link rel="preconnect" href="https://vidsrc.pm" crossorigin />
+    <link rel="preconnect" href="https://vidlink.pro" crossorigin />
+    <link rel="preconnect" href="https://vidfast.vc" crossorigin />
+    <link rel="preconnect" href="https://player.autoembed.cc" crossorigin />
+    <link rel="dns-prefetch" href="https://www.2embed.cc" />
 
     <!-- Google tag (gtag.js) -->
     <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-CL6ECGJ4JL"></script>
@@ -172,29 +176,6 @@ const isHome = Astro.url.pathname === '/';
       <slot />
     </main>
 
-    {/* ── Shared cinematic gallery + testimonials ──
-         Rendered on every page (desktop + mobile) except the home page, which
-         renders its own pair (so we avoid duplicating them there). Pages can opt
-         out via the `noExtras` prop and supply their own images via
-         `galleryImages`.
-
-         Order: FeaturedGallery (WebGL) first, then the zero-JavaScript
-         CinematicGallery. GalleryShowcase used to sit after both and has been
-         removed site-wide — it was a second Three.js canvas rendering the same
-         hard-coded demo stills.
-
-         FeaturedGallery is client:visible, not client:only: client:only made
-         Astro's view-transition router reload the entire target page in a
-         hidden iframe on every navigation (prepareForClientOnlyComponents),
-         which was the single largest source of navigation latency. */}
-    {!isHome && !noExtras && (
-      <>
-        <FeaturedGallery client:visible={{ rootMargin: '400px' }} images={extrasImages} />
-        <CinematicGallery images={extrasImages} />
-        <Testimonials client:visible />
-      </>
-    )}
-
     {!noFooter && <CinematicFooter client:visible />}
 
     <!-- Bottom tab bar (mobile only — hidden via CSS at ≥768px) -->
@@ -205,6 +186,9 @@ const isHome = Astro.url.pathname === '/';
 
     <!-- ── Global cookie consent — shown on every page (mobile + desktop) ── -->
     <CookieConsent client:idle />
+
+    <!-- ── NetMirror 1:1 Preview Modal (Available globally across all pages) ── -->
+    <NetMirrorModal client:load />
 
     <!-- Scroll progress + scroll-reveal scripts -->
     <script>

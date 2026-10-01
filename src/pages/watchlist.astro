@@ -137,8 +137,8 @@ function sortUrl(sort: string) {
                 month: 'short', day: 'numeric', year: 'numeric'
               });
               return (
-                <article class="wl-card" role="listitem">
-                  <a href={href} class="wl-card-link" aria-label={entry.title}>
+                <article class="wl-card" role="listitem" data-netmirror-id={entry.tmdb_id} data-netmirror-type={entry.media_type}>
+                  <a href={href} class="wl-card-link" data-netmirror-id={entry.tmdb_id} data-netmirror-type={entry.media_type} aria-label={entry.title}>
                     <div class="wl-card-img-wrap">
                       {posterUrl ? (
                         <img

@@ -817,7 +817,7 @@ export default function PlayerShell({
             so this layer is a convenience rather than the only thing standing
             between a viewer and the provider's UI. */}
         {/* Fallback wake / tap layer when gestures are disabled */}
-        {started && !prefs.gestures && !hasError && !ended && !directInteract && (
+        {started && !prefs.gestures && !hasError && !ended && !directInteract && engine !== 'embed' && (
           <div
             className="fp-wake-layer"
             aria-hidden="true"
@@ -874,9 +874,7 @@ export default function PlayerShell({
             because the pointerup path already handles the second click — without
             this the browser's own dblclick would fire a duplicate action and
             select the page text behind the video. */}
-        {/* Gesture / tap zones across all engines: single-tap centre to play/pause,
-            double-tap left/right to skip 10s, swiping for brightness/volume */}
-        {started && prefs.gestures && !hasError && !ended && !directInteract && (
+        {started && prefs.gestures && !hasError && !ended && !directInteract && engine !== 'embed' && (
           <>
             <div
               className="fp-zone fp-zone-left"
@@ -1108,7 +1106,26 @@ export default function PlayerShell({
               )}
             </div>
 
-            <div className="fp-topbar-right" />
+            <div className="fp-topbar-right">
+              {engine === 'embed' && servers.length > 0 && (
+                <button
+                  type="button"
+                  className={`fp-top-server-btn${netMirrorOpen && netMirrorTab === 'server' ? ' is-open' : ''}`}
+                  onClick={() => {
+                    setNetMirrorTab('server');
+                    setNetMirrorOpen(!netMirrorOpen);
+                  }}
+                  title="Switch Streaming Server"
+                  aria-label="Switch Streaming Server"
+                >
+                  <span className="fp-top-server-icon" aria-hidden="true">⚡</span>
+                  <span className="fp-top-server-name">{servers.find((s) => s.id === activeServer)?.name ?? 'Server'}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -1131,12 +1148,8 @@ export default function PlayerShell({
         {upNext}
         {ended && endCard}
 
-        {/* ── Control bar. Rendered for EVERY engine, the third-party embed
-             included, so the options on screen are the same wherever the video
-             is coming from. Netflix's order: progress across the full width, then
-             play/pause, volume, skip and — on the right — the next episode,
-             settings and fullscreen. ── */}
-        {started && !hasError && (
+        {/* ── Control bar (HTML5/YouTube only — embed engines use their own working native controls) ── */}
+        {started && !hasError && engine !== 'embed' && (
           <div
             ref={controlsRef}
             className="fp-controls"
@@ -1322,9 +1335,9 @@ export default function PlayerShell({
                 <button
                   ref={overflowBtn}
                   type="button"
-                  className={`fp-btn fp-top-btn${netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed') ? ' is-open' : ''}`}
+                  className={`fp-btn fp-top-btn${netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed' || netMirrorTab === 'server') ? ' is-open' : ''}`}
                   onClick={() => {
-                    if (netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed')) {
+                    if (netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed' || netMirrorTab === 'server')) {
                       setNetMirrorOpen(false);
                     } else {
                       setNetMirrorTab('quality');

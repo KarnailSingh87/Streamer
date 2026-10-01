@@ -55,7 +55,15 @@ const top10 = items.slice(0, 10);
               <span class="t10-rank" aria-hidden="true">{rank}</span>
 
               {/* ── Poster at z-index 1, overlaps the right half of the number ── */}
-              <a href={href} class="t10-card" aria-label={resolvedTitle} tabindex={isClone ? -1 : 0}>
+              <a
+                href={href}
+                class="t10-card"
+                data-netmirror-id={item.id}
+                data-netmirror-type={resolvedType}
+                onclick={`window.dispatchEvent(new CustomEvent('open-netmirror-modal', { detail: { id: ${item.id}, mediaType: '${resolvedType}' } })); return false;`}
+                aria-label={resolvedTitle}
+                tabindex={isClone ? -1 : 0}
+              >
                 {poster ? (
                   <img
                     src={poster}
@@ -279,6 +287,8 @@ const top10 = items.slice(0, 10);
     display: flex; flex-direction: column; justify-content: flex-end;
     padding: 0.5rem 0.45rem;
     opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
     transition: opacity 0.2s ease;
   }
   .t10-card:hover .t10-card-overlay,
@@ -287,6 +297,7 @@ const top10 = items.slice(0, 10);
   .t10-rating {
     display: inline-flex; align-items: center; gap: 0.2rem;
     font-size: 0.6875rem; font-weight: 700; color: #f5c518; margin-bottom: 0.2rem;
+    white-space: nowrap; flex-shrink: 0;
   }
   .t10-name {
     font-size: 0.6875rem; font-weight: 600; color: #fff; line-height: 1.3;

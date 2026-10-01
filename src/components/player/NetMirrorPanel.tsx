@@ -16,13 +16,27 @@ import { useState, useRef, useEffect } from 'react';
 import type { AudioTrackInfo, TextTrackInfo } from '../../lib/player/types';
 import type { SubtitleBackdrop, SubtitleSize } from '../../lib/player/prefs';
 
-export type NetMirrorTab = 'quality' | 'subtitles' | 'speed' | 'audio';
+export interface ServerOptionItem {
+  id: string;
+  name: string;
+  label: string;
+  qualityLabel?: string | null;
+  online?: boolean;
+  verified?: boolean;
+  live?: boolean;
+  failed?: boolean;
+}
+
+export type NetMirrorTab = 'server' | 'quality' | 'subtitles' | 'speed' | 'audio';
 
 interface NetMirrorPanelProps {
   open: boolean;
   activeTab: NetMirrorTab;
   onTabChange: (tab: NetMirrorTab) => void;
   onClose: () => void;
+  servers?: ServerOptionItem[];
+  activeServer?: string | null;
+  onSelectServer?: (id: string) => void;
   quality: string;
   onSelectQuality: (q: string) => void;
   audioTracks: AudioTrackInfo[];
@@ -42,6 +56,9 @@ export default function NetMirrorPanel({
   activeTab,
   onTabChange,
   onClose,
+  servers = [],
+  activeServer,
+  onSelectServer,
   quality,
   onSelectQuality,
   audioTracks,
@@ -112,6 +129,24 @@ export default function NetMirrorPanel({
       {/* ── Top Tab Bar ── */}
       <div className="nm-tabs-bar">
         <div className="nm-tabs-list">
+          {/* Tab 0: Server (when servers are available) */}
+          {servers && servers.length > 0 && (
+            <button
+              type="button"
+              className={`nm-tab-btn${activeTab === 'server' ? ' is-active' : ''}`}
+              onClick={() => onTabChange('server')}
+              title="Servers"
+              aria-label="Servers"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                <line x1="6" y1="6" x2="6.01" y2="6" />
+                <line x1="6" y1="18" x2="6.01" y2="18" />
+              </svg>
+            </button>
+          )}
+
           {/* Tab 1: Quality */}
           <button
             type="button"
@@ -195,6 +230,37 @@ export default function NetMirrorPanel({
 
       {/* ── Content Body ── */}
       <div className="nm-panel-body">
+        {/* TAB 0: Servers */}
+        {activeTab === 'server' && (
+          <div className="nm-list">
+            {servers.map((s, idx) => {
+              const active = activeServer === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`nm-row${active ? ' is-active' : ''}`}
+                  onClick={() => onSelectServer?.(s.id)}
+                >
+                  {active ? (
+                    <span className="nm-play-icon" aria-hidden="true">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="#22c55e">
+                        <polygon points="6 3 20 12 6 21 6 3" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <span className="nm-play-placeholder" aria-hidden="true" />
+                  )}
+                  <div className="nm-server-info">
+                    <span className="nm-row-text">Server {idx + 1} ({s.name})</span>
+                    {s.qualityLabel && <span className="nm-server-badge">{s.qualityLabel}</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* TAB 1: Quality */}
         {activeTab === 'quality' && (
           <div className="nm-list">

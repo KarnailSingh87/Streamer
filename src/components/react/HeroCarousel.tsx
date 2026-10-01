@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { HeroSlide } from '../../lib/tmdb';
-import { OriginButton } from '../ui/origin-button';
 
 const SLIDE_MS = 3000; // 3 seconds per slide
 const MAX_GENRES = 3;  // keep the chip row on a single line
@@ -194,20 +193,34 @@ export default function HeroCarousel({ slides, label }: Props) {
             <p className="nf-overview">{slide.overview}</p>
           )}
 
-          {/* Primary action + watchlist. The animated control is intentionally
-              the only navigation CTA: the old desktop “More Info” button led to
-              the same place and read like a duplicate trailer action. */}
-          <div className="nf-actions flex flex-row gap-3 mt-4 items-center w-full max-w-[500px]">
-            <OriginButton
-              onClick={() => { window.location.href = slide.href; }}
-              className="flex-1 md:flex-none md:w-[240px] h-[48px] md:h-[55px] rounded-full !bg-black/60 backdrop-blur-3xl !border !border-white/20 text-white shadow-[0_0_15px_rgba(0,0,0,0.5)]"
-              aria-label={`Watch ${slide.title} now`}
+          {/* Netflix Billboard Actions: Play and More Info */}
+          <div className="netflix-billboard-actions">
+            <a
+              href={slide.href}
+              className="netflix-billboard-play"
+              aria-label={`Play ${slide.title}`}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M6 4.75a.75.75 0 0 1 1.18-.61l12 7.25a.75.75 0 0 1 0 1.22l-12 7.25A.75.75 0 0 1 6 19.25V4.75z" />
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
-              <span>Watch Now</span>
-            </OriginButton>
+              <span>Play</span>
+            </a>
+
+            <a
+              href={slide.mediaType === 'movie' ? `/movie/${slide.id}` : `/series/${slide.id}`}
+              data-netmirror-id={slide.id}
+              data-netmirror-type={slide.mediaType}
+              className="netflix-billboard-info"
+              aria-label={`More info about ${slide.title}`}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span>More Info</span>
+            </a>
+
             <WatchlistBtn id={slide.id} mediaType={slide.mediaType} title={slide.title} posterUrl={slide.posterUrl} />
           </div>
         </div>
@@ -526,6 +539,110 @@ export default function HeroCarousel({ slides, label }: Props) {
           .nf-genre:not(:first-child)::before { display: none; }
         }
 
+        /* ── Netflix Billboard Action Buttons ── */
+        .netflix-billboard-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.85rem;
+          margin-top: 1.25rem;
+          flex-wrap: wrap;
+          animation: nf-fade-up 0.5s ease backwards;
+          animation-delay: 200ms;
+        }
+
+        .netflix-billboard-play {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          background: #ffffff;
+          color: #000000;
+          font-weight: 700;
+          font-size: 1.05rem;
+          padding: 0.65rem 1.6rem;
+          border-radius: 4px;
+          text-decoration: none;
+          transition: background-color 150ms ease, transform 150ms ease;
+          border: none;
+          cursor: pointer;
+        }
+
+        .netflix-billboard-play:hover {
+          background: rgba(255, 255, 255, 0.75);
+          transform: scale(1.02);
+        }
+
+        .netflix-billboard-info {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          background: rgba(109, 109, 110, 0.7);
+          color: #ffffff;
+          font-weight: 700;
+          font-size: 1.05rem;
+          padding: 0.65rem 1.5rem;
+          border-radius: 4px;
+          text-decoration: none;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          transition: background-color 150ms ease, transform 150ms ease;
+          border: none;
+          cursor: pointer;
+        }
+
+        .netflix-billboard-info:hover {
+          background: rgba(109, 109, 110, 0.4);
+          transform: scale(1.02);
+        }
+
+        .netflix-billboard-circle-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          border: 2px solid rgba(255, 255, 255, 0.7);
+          background: rgba(42, 42, 42, 0.6);
+          color: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 150ms ease;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          flex-shrink: 0;
+        }
+
+        .netflix-billboard-circle-btn:hover {
+          border-color: #ffffff;
+          background: rgba(255, 255, 255, 0.2);
+          transform: scale(1.06);
+        }
+
+        .netflix-billboard-circle-btn.is-saved {
+          border-color: #e50914;
+          background: rgba(229, 9, 20, 0.25);
+          color: #e50914;
+        }
+
+        @media (max-width: 480px) {
+          .netflix-billboard-actions {
+            gap: 0.5rem;
+          }
+          .netflix-billboard-play {
+            padding: 0.5rem 1.15rem;
+            font-size: 0.95rem;
+          }
+          .netflix-billboard-info {
+            padding: 0.5rem 1rem;
+            font-size: 0.95rem;
+          }
+          .netflix-billboard-circle-btn {
+            width: 38px;
+            height: 38px;
+          }
+        }
+
         /* Actions: one clear, long primary button plus a compact list action. */
         .nf-actions {
           display: flex;
@@ -609,7 +726,7 @@ export default function HeroCarousel({ slides, label }: Props) {
           padding: 0 4% 2.25rem;
         }
         .nf-strip-left { display: flex; align-items: center; gap: 1rem; min-width: 0; }
-        .nf-strip-right { display: flex; align-items: center; gap: 0.5rem; }
+        .nf-strip-right { display: none !important; }
 
         /* Slide counter */
         .nf-counter {
@@ -708,19 +825,19 @@ function WatchlistBtn({ id, mediaType, title, posterUrl }: {
   };
 
   return (
-    <OriginButton
+    <button
+      type="button"
       onClick={toggle}
-      className={`shrink-0 h-[48px] w-[48px] md:h-[55px] md:w-[55px] rounded-full backdrop-blur-2xl text-white ${saved ? 'bg-white/20 border-white/40' : 'bg-black/30 border-white/10'}`}
-      style={{ paddingLeft: 0, paddingRight: 0 }}
+      className={`netflix-billboard-circle-btn${saved ? ' is-saved' : ''}`}
       aria-pressed={saved}
       aria-label={saved ? `Remove ${title} from watchlist` : `Add ${title} to watchlist`}
       title={saved ? 'Remove from Watchlist' : 'Add to Watchlist'}
     >
       {saved ? (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
       ) : (
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
       )}
-    </OriginButton>
+    </button>
   );
 }
