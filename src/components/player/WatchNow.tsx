@@ -894,27 +894,7 @@ export default function WatchNow({
         endCard={endCardNode}
         toast={toast}
         optimizing={selecting || (engine === 'embed' && started && !server && !exhausted)}
-        notice={
-          <>
-            {/* Honest statement of the engine's ceiling. Only shown for the
-                third-party iframe, and only once playback has started. */}
-            {started && engine === 'embed' && (
-              <p className="fp-notice">{t('tracksOnServerHint')}</p>
-            )}
-            {/* Every server has now failed for this title. Nothing to pick from
-                and nothing to instruct: the player is still trying, and the only
-                honest thing left to say is that. */}
-            {started && engine === 'embed' && exhausted && (
-              <p className="fp-notice is-warning">{t('allServersFailed')}</p>
-            )}
-            {/* The toast that announced the fallback is gone within seconds; this
-                line stays, so a viewer who looked away still understands why they
-                are watching on a different server. */}
-            {started && engine === 'embed' && failedOver && !exhausted && (
-              <p className="fp-notice">{t('serverFellBack')}</p>
-            )}
-          </>
-        }
+        notice={null}
       />
     </div>,
     document.body
