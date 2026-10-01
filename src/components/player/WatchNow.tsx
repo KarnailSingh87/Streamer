@@ -893,7 +893,7 @@ export default function WatchNow({
         upNextShrink={false}
         endCard={endCardNode}
         toast={toast}
-        optimizing={selecting || (engine === 'embed' && started && !server && !exhausted)}
+        optimizing={false}
         notice={null}
       />
     </div>,

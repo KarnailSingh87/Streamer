@@ -80,9 +80,9 @@ export const DEFAULT_EMBED_TEXT_TRACKS: TextTrackInfo[] = [
 ];
 
 /** Neither a `load` event nor a postMessage by then ⇒ the provider is not going
- *  to render. Kept short (3.8s) so automatic server failover moves on
- *  instantly to a working server instead of leaving the viewer on a dead/404 frame. */
-const LOAD_TIMEOUT_MS = 2200;
+ *  to render. Kept at 15s so automatic server failover moves on
+ *  to a working server instead of leaving the viewer on a dead/404 frame. */
+const LOAD_TIMEOUT_MS = 15000;
 
 /**
  * Every postMessage dialect these embed players are plausibly listening for.
