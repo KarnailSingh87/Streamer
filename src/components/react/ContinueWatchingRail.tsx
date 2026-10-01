@@ -81,7 +81,7 @@ export default function ContinueWatchingRail({ title = 'Continue Watching' }: { 
           {/* Two identical sequences make the left→right roll seamless. */}
           <div className="cw-track" role="list" aria-hidden={false}>
             {items.concat(items).map((it, i) => {
-              const href = it.mediaType === 'movie' ? `/movie/${it.id}#watch` : `/series/${it.id}#watch`;
+              const href = it.mediaType === 'movie' ? `/movie/${it.id}?play=1#watch` : `/series/${it.id}?play=1#watch`;
               const isClone = i >= items.length;
               return (
                 <div

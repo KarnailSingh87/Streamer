@@ -95,47 +95,31 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
 
       {/* ── NetMirror 1:1 Card Modal Container ── */}
       <article class="netmirror-card">
-        {/* Top Hero: Video Player (if playing) OR Billboard Backdrop Hero */}
-        {isAutoPlay ? (
-          <div class="netmirror-card-player-hero" id="watch">
-            <WatchNow
-              hideTitle={true}
-              mediaType="movie"
-              id={movie.id}
-              title={movie.title}
-              backdropUrl={backdropUrl ?? posterUrl}
-              posterUrl={posterUrl}
-              trailerKey={trailerKey}
-              related={relatedForPlayer}
-              genres={(movie.genres ?? []).map((g) => g.name)}
-              rating={rating}
-            />
-          </div>
-        ) : (
-          <div class="netmirror-card-hero">
-            <img
-              src={backdropUrl ?? posterUrl}
-              alt={movie.title}
-              class="netmirror-card-hero-img"
-            />
-            <div class="netmirror-card-hero-gradient"></div>
+        {/* Top Hero: Billboard Backdrop Hero */}
+        <div class="netmirror-card-hero">
+          <img
+            src={backdropUrl ?? posterUrl}
+            alt={movie.title}
+            class="netmirror-card-hero-img"
+          />
+          <div class="netmirror-card-hero-gradient"></div>
 
-            <a href="/" class="netmirror-card-close" aria-label="Close">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </a>
+          <a href="/" class="netmirror-card-close" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </a>
 
-            <div class="netmirror-card-hero-content">
-              <h1 class="netmirror-card-title">{movie.title}</h1>
-              <div class="netmirror-card-hero-actions">
-                <a href={`/movie/${movie.id}?play=1#watch`} class="netmirror-btn-play">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                  <span>Play</span>
-                </a>
+          <div class="netmirror-card-hero-content">
+            <h1 class="netmirror-card-title">{movie.title}</h1>
+            <div class="netmirror-card-hero-actions">
+              <a href={`/movie/${movie.id}?play=1#watch`} class="netmirror-btn-play" id="nm-movie-play-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                <span>Play</span>
+              </a>
 
                 <button
                   type="button"
@@ -170,7 +154,6 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
               </div>
             </div>
           </div>
-        )}
 
         {/* ── Metadata 2-Columns ── */}
         <div class="netmirror-card-body">
@@ -317,6 +300,32 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
           </div>
         </div>
       </article>
+
+      {/* Full-Screen OTT Player Portal Container */}
+      <div id="watch">
+        <WatchNow
+          hideTitle={true}
+          mediaType="movie"
+          id={movie.id}
+          title={movie.title}
+          backdropUrl={backdropUrl ?? posterUrl}
+          posterUrl={posterUrl}
+          trailerKey={trailerKey}
+          related={relatedForPlayer}
+          genres={(movie.genres ?? []).map((g) => g.name)}
+          rating={rating}
+          autoStart={isAutoPlay}
+        />
+      </div>
+
+      <script is:inline>
+        document.addEventListener('DOMContentLoaded', () => {
+          document.getElementById('nm-movie-play-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('streamer:play'));
+          });
+        });
+      </script>
     </div>
   )}
 </Layout>

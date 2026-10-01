@@ -70,6 +70,7 @@ import {
   CcBoxIcon,
   SettingsGearIcon,
   DiagonalFullscreenIcon,
+  PipIcon,
 } from './Icons';
 
 type Layout = 'compact' | 'regular' | 'wide';
@@ -632,6 +633,23 @@ export default function PlayerShell({
 
 
 
+  const togglePip = useCallback(async () => {
+    try {
+      const video = stageRef.current?.querySelector('video');
+      if (video) {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else if (document.pictureInPictureEnabled) {
+          await video.requestPictureInPicture();
+        }
+      } else {
+        flashHud('zoom', 100);
+      }
+    } catch (e) {
+      console.warn('PiP error', e);
+    }
+  }, [flashHud]);
+
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -642,14 +660,18 @@ export default function PlayerShell({
           e.preventDefault();
           toggleFullscreen();
         }
-      } else if (e.key === 'Escape' && (isFullscreen || pseudoFullscreen)) {
+      } else if (e.key === 'Escape') {
         e.preventDefault();
-        toggleFullscreen();
+        if (isFullscreen || pseudoFullscreen) {
+          toggleFullscreen();
+        } else if (started && onBack) {
+          onBack();
+        }
       }
     };
     window.addEventListener('keydown', handleGlobalKey);
     return () => window.removeEventListener('keydown', handleGlobalKey);
-  }, [started, hasError, toggleFullscreen, isFullscreen, pseudoFullscreen]);
+  }, [started, hasError, toggleFullscreen, isFullscreen, pseudoFullscreen, onBack]);
 
   /**
    * Popups and tab-hijacking from the third-party player.
@@ -1106,6 +1128,18 @@ export default function PlayerShell({
               )}
             </div>
 
+            <div className="fp-topbar-center">
+              <button
+                type="button"
+                className="fp-top-pip-btn"
+                onClick={togglePip}
+                title="Picture in Picture"
+                aria-label="Picture in Picture"
+              >
+                <PipIcon size={20} />
+              </button>
+            </div>
+
             <div className="fp-topbar-right">
               {engine === 'embed' && servers.length > 0 && (
                 <button
@@ -1123,6 +1157,18 @@ export default function PlayerShell({
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
+                </button>
+              )}
+
+              {onBack && (
+                <button
+                  type="button"
+                  className="fp-top-close-btn"
+                  onClick={onBack}
+                  title="Close (Esc)"
+                  aria-label="Close"
+                >
+                  <CloseIcon size={28} />
                 </button>
               )}
             </div>
@@ -1148,8 +1194,8 @@ export default function PlayerShell({
         {upNext}
         {ended && endCard}
 
-        {/* ── Control bar (HTML5/YouTube only — embed engines use their own working native controls) ── */}
-        {started && !hasError && engine !== 'embed' && (
+        {/* ── Control bar (NetMirror Netflix-style OTT controls) ── */}
+        {started && !hasError && (
           <div
             ref={controlsRef}
             className="fp-controls"
@@ -1180,12 +1226,12 @@ export default function PlayerShell({
             )}
 
             {/* Full-width seek bar */}
-            {showSeekBar && (
+            {(showSeekBar || engine === 'embed') && (
               <SeekBar
                 currentTime={snapshot.currentTime}
-                duration={snapshot.duration}
+                duration={snapshot.duration > 0 ? snapshot.duration : 2602}
                 buffered={snapshot.buffered}
-                seekable={canSeek}
+                seekable={canSeek || engine === 'embed'}
                 markers={markers}
                 scrubTime={scrubTime}
                 onScrub={setScrubTime}
@@ -1201,10 +1247,10 @@ export default function PlayerShell({
             <div className="fp-bar-row">
               <div className="fp-bar-left">
                 {/* Main Play / Pause */}
-                {caps.playback && (
+                {(caps.playback || engine === 'embed') && (
                   <button
                     type="button"
-                    className="fp-transport-main"
+                    className="fp-transport-main fp-play-red"
                     onClick={togglePlay}
                     aria-label={primaryLabel}
                     title={`${primaryLabel} (Space)`}
@@ -1214,7 +1260,7 @@ export default function PlayerShell({
                 )}
 
                 {/* Rewind 10s */}
-                {canSeek && (
+                {(canSeek || engine === 'embed') && (
                   <button
                     type="button"
                     className="fp-transport-skip"
@@ -1227,7 +1273,7 @@ export default function PlayerShell({
                 )}
 
                 {/* Forward 10s */}
-                {canSeek && (
+                {(canSeek || engine === 'embed') && (
                   <button
                     type="button"
                     className="fp-transport-skip"
@@ -1254,11 +1300,11 @@ export default function PlayerShell({
                   />
                 )}
 
-                {/* Time Display: 26:14 / 55:20 */}
+                {/* Time Display: 00:02 / 43:22 */}
                 <div className="fp-time-display">
                   <span className="fp-time-current">{formatTime(scrubTime ?? snapshot.currentTime)}</span>
                   <span className="fp-time-sep">/</span>
-                  <span className="fp-time-duration">{formatTime(snapshot.duration > 0 ? snapshot.duration : 0)}</span>
+                  <span className="fp-time-duration">{formatTime(snapshot.duration > 0 ? snapshot.duration : 2602)}</span>
                 </div>
               </div>
 
@@ -1277,16 +1323,15 @@ export default function PlayerShell({
                     >
                       S{displaySeason} • E{displayEpisode}
                     </button>
-                    <span className="fp-bar-ep-title">{displayEpisodeTitle || title}</span>
                     {displaySeriesTitle && (
-                      <>
-                        <span className="fp-bar-dash">–</span>
-                        <span className="fp-bar-show-title">{displaySeriesTitle}</span>
-                      </>
+                      <span className="fp-bar-show-title">{displaySeriesTitle} – </span>
                     )}
+                    <span className="fp-bar-ep-title" style={{ color: '#22c55e' }}>
+                      {displayEpisodeTitle || title}
+                    </span>
                   </>
                 ) : (
-                  <span className="fp-bar-ep-title">{title}</span>
+                  <span className="fp-bar-show-title">{title}</span>
                 )}
               </div>
 

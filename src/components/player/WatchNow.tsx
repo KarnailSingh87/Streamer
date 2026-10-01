@@ -19,6 +19,7 @@
 // server) and cached per season, so flicking between season tabs is instant.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePlayer } from './usePlayer';
 import PlayerShell from './PlayerShell';
 import EpisodeOverlay, { type EpisodeItem, type SeasonOption } from './EpisodeOverlay';
@@ -131,22 +132,33 @@ export default function WatchNow({
   const isSeries = mediaType === 'tv';
 
   const [engine, setEngine] = useState<EngineId>(() => (media ? 'html5' : 'embed'));
-  const [started, setStarted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('play') === '1' || window.location.hash === '#watch') return true;
-    }
-    return autoStart ?? true;
-  });
+  // Always start as false on SSR to avoid hydration mismatch.
+  // The useEffect below sets it to true on the client after mount.
+  const [started, setStarted] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    setMounted(true);
     const params = new URLSearchParams(window.location.search);
-    if (params.get('play') === '1' || window.location.hash === '#watch') {
-      const el = document.getElementById('watch');
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    if (params.get('play') === '1' || window.location.hash === '#watch' || autoStart) {
+      setStarted(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Lock body scroll while player is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (started) {
+      document.body.classList.add('fp-noscroll');
+    } else {
+      document.body.classList.remove('fp-noscroll');
+    }
+    return () => {
+      document.body.classList.remove('fp-noscroll');
+    };
+  }, [started]);
+
   const [reloadKey, setReloadKey] = useState(0);
   const [upNextDismissed, setUpNextDismissed] = useState(false);
 
@@ -670,19 +682,37 @@ export default function WatchNow({
     }
   }, [api, caps.seek]);
 
+  // Listen for global custom event to trigger play directly
+  useEffect(() => {
+    const handleTriggerPlay = (e: Event) => {
+      const custom = e as CustomEvent<{ season?: number; episode?: number }>;
+      if (custom.detail?.season && custom.detail?.episode) {
+        playEpisode(custom.detail.season, custom.detail.episode);
+      } else {
+        setStarted(true);
+      }
+    };
+    window.addEventListener('streamer:play', handleTriggerPlay);
+    return () => window.removeEventListener('streamer:play', handleTriggerPlay);
+  }, [playEpisode]);
+
   /**
-   * Back: browser history first, so Astro's ClientRouter restores the previous
-   * page *and its scroll position*. Only when there is no history to go back to
-   * (deep link, new tab) do we fall back to the listing page.
+   * Back: dismiss full-screen player, clean play parameter from URL, and return to detail card.
    */
   const goBack = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
+    setStarted(false);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('play')) {
+          url.searchParams.delete('play');
+          window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+        }
+      } catch {
+        /* ignore */
+      }
     }
-    window.location.href = isSeries ? '/series' : '/movies';
-  }, [isSeries]);
+  }, []);
 
   // ── Up Next / end card ────────────────────────────────────────────────────
   const nextTarget = neighbours.next;
@@ -813,8 +843,12 @@ export default function WatchNow({
     ? `${title} — ${Math.floor(resumeAt / 60)}m`
     : title;
 
-  return (
-    <div className="fp-watchnow" dir={chromeDir}>
+  if (!started || !mounted || typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
+    <div className="fp-fullscreen-portal" dir={chromeDir}>
       <PlayerShell
         api={api}
         t={t}
@@ -882,58 +916,7 @@ export default function WatchNow({
           </>
         }
       />
-
-      {/* Net77 Streaming Server Selector */}
-      {engine === 'embed' && servers && servers.length > 0 && (
-        <div className="net77-servers-bar" role="region" aria-label="Streaming Servers">
-          <div className="net77-servers-header">
-            <span className="net77-servers-icon" aria-hidden="true">⚡</span>
-            <span className="net77-servers-title">Servers:</span>
-            {selecting && <span className="net77-servers-status">Switching...</span>}
-          </div>
-          <div className="net77-servers-pills">
-            {servers.map((s, idx) => {
-              const isActive = server === s.id;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  className={`net77-server-btn${isActive ? ' is-active' : ''}`}
-                  onClick={() => {
-                    setServer(s.id);
-                    showToast(`Switched to Server ${idx + 1} (${s.name})`);
-                  }}
-                  title={`Switch to ${s.name}`}
-                >
-                  <span className="net77-server-badge">Server {idx + 1}</span>
-                  <span className="net77-server-provider">{s.name}</span>
-                  {isActive && <span className="net77-server-live-dot" aria-hidden="true" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Browsable episode list under the player (series only). Kept out of the
-          overlay so a viewer can pick an episode without covering the video.
-          Driven by `effectiveSeasons`, so a title with no TMDB season data shows
-          the episodes the season endpoint returns instead of nothing. */}
-      {isSeries && (
-        <EpisodeOverlay
-          variant="inline"
-          seasons={effectiveSeasons}
-          activeSeason={activeSeason}
-          onSeason={setActiveSeason}
-          episodes={episodes}
-          loading={episodesLoading}
-          error={episodesError}
-          onRetry={() => setSeasonNonce((n) => n + 1)}
-          current={current}
-          onPlay={playEpisode}
-          t={t}
-        />
-      )}
-    </div>
+    </div>,
+    document.body
   );
 }

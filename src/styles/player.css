@@ -211,6 +211,64 @@
   overscroll-behavior: none;
 }
 
+/* ────────────────────────── Fullscreen Direct Player Portal ─── */
+.fp-fullscreen-portal {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  z-index: 999999 !important;
+  background: #000000 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.fp-fullscreen-portal .fp-root {
+  position: relative !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+}
+
+.fp-fullscreen-portal .fp-stage {
+  position: relative !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  aspect-ratio: auto !important;
+  border-radius: 0 !important;
+  border: none !important;
+  background: #000000 !important;
+  flex: 1 1 auto !important;
+}
+
+.fp-fullscreen-portal .fp-pip {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.fp-fullscreen-portal .fp-surface {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.fp-fullscreen-portal .fp-surface iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background: #000000 !important;
+}
+
 /* ──────────────────────────────────────────────────────────── Splash ─── */
 
 .fp-splash {
@@ -904,11 +962,64 @@
   }
 }
 
+.fp-topbar-center {
+  position: absolute;
+  left: 50%;
+  top: max(0.85rem, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  pointer-events: auto;
+}
+
+.fp-top-pip-btn {
+  background: rgba(35, 35, 35, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 180ms ease;
+}
+
+.fp-top-pip-btn:hover {
+  background: rgba(55, 55, 55, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.06);
+}
+
 .fp-topbar-right {
   display: flex;
   align-items: center;
   gap: 0.85rem;
   flex-shrink: 0;
+}
+
+.fp-top-close-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 160ms ease, opacity 160ms ease;
+  opacity: 0.9;
+}
+
+.fp-top-close-btn:hover {
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 .fp-top-server-btn {
@@ -1677,7 +1788,7 @@ button.fp-bar-pill:active {
 .fp-bar-ep-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #22c55e !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1693,7 +1804,7 @@ button.fp-bar-pill:active {
 .fp-bar-show-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #00e676;
+  color: #ffffff !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1732,7 +1843,8 @@ button.fp-bar-pill:active {
 }
 
 /* Sized for the row: flat icon button with hover highlight */
-.fp-transport-main {
+.fp-transport-main,
+.fp-transport-main.fp-play-red {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1741,14 +1853,20 @@ button.fp-bar-pill:active {
   border-radius: 50%;
   background: transparent;
   border: 0;
-  color: #ffffff;
+  color: #e50914 !important;
   cursor: pointer;
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background 160ms ease;
 }
 
+.fp-transport-main svg,
+.fp-transport-main.fp-play-red svg {
+  color: #e50914 !important;
+  fill: #e50914 !important;
+}
+
 .fp-transport-main:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: scale(1.1);
+  background: rgba(229, 9, 20, 0.15);
+  transform: scale(1.12);
 }
 
 .fp-transport-main:active {

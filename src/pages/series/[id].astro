@@ -127,50 +127,31 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
 
       {/* ── NetMirror 1:1 Card Modal Container ── */}
       <article class="netmirror-card">
-        {/* Top Hero: Video Player (if playing) OR Billboard Backdrop Hero */}
-        {isAutoPlay ? (
-          <div class="netmirror-card-player-hero" id="watch">
-            <WatchNow
-              hideTitle={true}
-              mediaType="tv"
-              id={series.id}
-              title={series.name}
-              backdropUrl={backdropUrl ?? posterUrl}
-              posterUrl={posterUrl}
-              seasons={playerSeasons}
-              trailerKey={trailerKey}
-              related={relatedForPlayer}
-              genres={(series.genres ?? []).map((g) => g.name)}
-              rating={rating}
-              initialSeason={initialSeason}
-              initialEpisode={initialEpisode}
-            />
-          </div>
-        ) : (
-          <div class="netmirror-card-hero">
-            <img
-              src={backdropUrl ?? posterUrl}
-              alt={series.name}
-              class="netmirror-card-hero-img"
-            />
-            <div class="netmirror-card-hero-gradient"></div>
+        {/* Top Hero: Billboard Backdrop Hero */}
+        <div class="netmirror-card-hero">
+          <img
+            src={backdropUrl ?? posterUrl}
+            alt={series.name}
+            class="netmirror-card-hero-img"
+          />
+          <div class="netmirror-card-hero-gradient"></div>
 
-            <a href="/" class="netmirror-card-close" aria-label="Close">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </a>
+          <a href="/" class="netmirror-card-close" aria-label="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </a>
 
-            <div class="netmirror-card-hero-content">
-              <h1 class="netmirror-card-title">{series.name}</h1>
-              <div class="netmirror-card-hero-actions">
-                <a href={`/series/${series.id}?play=1#watch`} class="netmirror-btn-play">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                  <span>Play</span>
-                </a>
+          <div class="netmirror-card-hero-content">
+            <h1 class="netmirror-card-title">{series.name}</h1>
+            <div class="netmirror-card-hero-actions">
+              <a href={`/series/${series.id}?play=1#watch`} class="netmirror-btn-play" id="nm-series-play-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                <span>Play</span>
+              </a>
 
                 <button
                   type="button"
@@ -205,7 +186,6 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
               </div>
             </div>
           </div>
-        )}
 
         {/* ── Metadata 2-Columns ── */}
         <div class="netmirror-card-body">
@@ -288,7 +268,7 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
                 const epPlayHref = `/series/${series.id}?season=${initialSeasonNum}&episode=${ep.episode_number}&play=1#watch`;
                 const isActive = isAutoPlay && ep.episode_number === (initialEpisode || 1);
                 return (
-                  <a href={epPlayHref} class={`netmirror-ep-row ${isActive ? 'is-active' : ''}`}>
+                  <a href={epPlayHref} class={`netmirror-ep-row ${isActive ? 'is-active' : ''}`} data-season={initialSeasonNum} data-episode={ep.episode_number}>
                     <span class="netmirror-ep-idx">{ep.episode_number}</span>
                     <div class="netmirror-ep-thumb-box">
                       {epThumb ? (
@@ -406,10 +386,52 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
           </div>
         </div>
       </article>
+
+      {/* Full-Screen OTT Player Portal Container */}
+      <div id="watch">
+        <WatchNow
+          hideTitle={true}
+          mediaType="tv"
+          id={series.id}
+          title={series.name}
+          backdropUrl={backdropUrl ?? posterUrl}
+          posterUrl={posterUrl}
+          seasons={playerSeasons}
+          trailerKey={trailerKey}
+          related={relatedForPlayer}
+          genres={(series.genres ?? []).map((g) => g.name)}
+          rating={rating}
+          initialSeason={initialSeason}
+          initialEpisode={initialEpisode}
+          autoStart={isAutoPlay}
+        />
+      </div>
     </div>
   )}
 
   <script is:inline>
+    // Play button and episode row direct click handling
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('nm-series-play-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('streamer:play'));
+      });
+
+      document.body.addEventListener('click', (e) => {
+        const epRow = e.target.closest('.netmirror-ep-row');
+        if (epRow) {
+          const season = epRow.getAttribute('data-season');
+          const episode = epRow.getAttribute('data-episode');
+          if (season && episode) {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('streamer:play', {
+              detail: { season: Number(season), episode: Number(episode) }
+            }));
+          }
+        }
+      });
+    });
+
     // Client-side season switcher
     (function () {
       const select = document.getElementById('season-selector');
@@ -426,7 +448,7 @@ const relatedForPlayer = recommendations.slice(0, 6).map((item) => ({
           const json = await res.json();
           if (json.episodes && json.episodes.length > 0) {
             container.innerHTML = json.episodes.map((ep) => `
-              <a href="/series/${seriesId}?season=${seasonNum}&episode=${ep.episode_number}&play=1#watch" class="netmirror-ep-row">
+              <a href="/series/${seriesId}?season=${seasonNum}&episode=${ep.episode_number}&play=1#watch" class="netmirror-ep-row" data-season="${seasonNum}" data-episode="${ep.episode_number}">
                 <span class="netmirror-ep-idx">${ep.episode_number}</span>
                 <div class="netmirror-ep-thumb-box">
                   ${ep.still_path ? `<img src="${ep.still_path}" alt="${ep.name}" class="netmirror-ep-thumb-img" loading="lazy" />` : '<div class="nm-ep-placeholder"></div>'}
