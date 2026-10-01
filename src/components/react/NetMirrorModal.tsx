@@ -151,9 +151,24 @@ export default function NetMirrorModal() {
       const target = (e.target as HTMLElement).closest('[data-netmirror-id], .poster-card-cover, .pc-btn--info, .t10-card');
       if (!target) return;
 
-      // If the click is directly on the play button on a card with explicit play intent, allow or open
-      const isPlayBtn = (e.target as HTMLElement).closest('.pc-btn--play, [data-play-direct]');
-      if (isPlayBtn) return; // let native play href run
+      // If the click is directly on the play button, trigger instant playback if already on that page
+      const isPlayBtn = (e.target as HTMLElement).closest('.pc-btn--play, [data-play-direct]') as HTMLElement | null;
+      if (isPlayBtn) {
+        const href = isPlayBtn.getAttribute('href') || (isPlayBtn.closest('a') as HTMLAnchorElement | null)?.href || '';
+        const match = href.match(/\/(movie|series)\/(\d+)/);
+        if (match) {
+          const targetPath = `/${match[1] === 'movie' ? 'movie' : 'series'}/${match[2]}`;
+          const currentPath = window.location.pathname;
+          if (currentPath === targetPath || currentPath.startsWith(targetPath + '?') || currentPath.startsWith(targetPath + '#')) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeModal();
+            window.dispatchEvent(new CustomEvent('streamer:play'));
+            return;
+          }
+        }
+        return; // let native href run for different pages
+      }
 
       const card = target.closest('[data-netmirror-id]') as HTMLElement || target as HTMLElement;
       const rawId = card.getAttribute('data-netmirror-id') ||
@@ -241,7 +256,7 @@ export default function NetMirrorModal() {
                 <h1 className="netmirror-hero-title">{data.title}</h1>
 
                 <div className="netmirror-hero-btns-row">
-                  {/* Big White Play Button */}
+                  {/* Big White Play Button — instant if already on this page */}
                   <a
                     href={
                       data.mediaType === 'movie'
@@ -249,6 +264,16 @@ export default function NetMirrorModal() {
                         : `/series/${data.id}?season=${selectedSeason}&episode=1&play=1#watch`
                     }
                     className="netmirror-play-btn"
+                    onClick={(e) => {
+                      const targetPath = data.mediaType === 'movie'
+                        ? `/movie/${data.id}`
+                        : `/series/${data.id}`;
+                      if (window.location.pathname === targetPath) {
+                        e.preventDefault();
+                        closeModal();
+                        window.dispatchEvent(new CustomEvent('streamer:play'));
+                      }
+                    }}
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                       <polygon points="5 3 19 12 5 21 5 3" />
@@ -395,6 +420,16 @@ export default function NetMirrorModal() {
                             key={ep.episode_number}
                             href={`/series/${data.id}?season=${selectedSeason}&episode=${ep.episode_number}&play=1#watch`}
                             className="netmirror-episode-item"
+                            onClick={(e) => {
+                              const targetPath = `/series/${data.id}`;
+                              if (window.location.pathname === targetPath) {
+                                e.preventDefault();
+                                closeModal();
+                                window.dispatchEvent(new CustomEvent('streamer:play', {
+                                  detail: { season: selectedSeason, episode: ep.episode_number }
+                                }));
+                              }
+                            }}
                           >
                             <span className="netmirror-ep-num">{ep.episode_number}</span>
 

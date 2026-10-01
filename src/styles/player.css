@@ -1188,14 +1188,21 @@
   z-index: 8;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 2.5rem 0.85rem max(0.7rem, env(safe-area-inset-bottom));
-  padding-left: max(0.85rem, env(safe-area-inset-left));
-  padding-right: max(0.85rem, env(safe-area-inset-right));
-  background: var(--fp-scrim);
+  /* Unified panel: scrubber + controls in one dark gradient slab */
+  padding: 3.5rem 1.25rem max(0.85rem, env(safe-area-inset-bottom));
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.96) 0%,
+    rgba(0, 0, 0, 0.82) 50%,
+    rgba(0, 0, 0, 0.4) 80%,
+    transparent 100%
+  );
+  gap: 0;
   opacity: 0;
-  transform: translateY(0.75rem);
-  transition: opacity 220ms var(--fp-ease), transform 220ms var(--fp-ease);
+  transform: translateY(0.5rem);
+  transition: opacity 250ms var(--fp-ease), transform 250ms var(--fp-ease);
   pointer-events: none;
 }
 
@@ -1463,9 +1470,9 @@
 .fp-seek-row {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1rem;
   width: 100%;
-  padding: 0.5rem 0.75rem 0.25rem;
+  padding: 0 0 0.5rem;
   box-sizing: border-box;
 }
 
@@ -1657,17 +1664,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem;
   width: 100%;
-  padding: 0.4rem 0 0.15rem;
+  padding: 0.25rem 0 0;
 }
 
 .fp-bar-left,
 .fp-bar-right {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.2rem;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .fp-bar-left {
@@ -1676,7 +1684,7 @@
 
 .fp-bar-right {
   flex: 0 0 auto;
-  gap: 0.55rem;
+  gap: 0.2rem;
 }
 
 /* ─── Floating Next Episode Button (above seek bar on right) ─── */
@@ -1823,8 +1831,8 @@ button.fp-bar-pill:active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 50%;
   color: #ffffff;
   background: transparent;
@@ -1842,30 +1850,30 @@ button.fp-bar-pill:active {
   transform: scale(0.94);
 }
 
-/* Sized for the row: flat icon button with hover highlight */
+/* Netflix-style: play/pause is white, not red */
 .fp-transport-main,
 .fp-transport-main.fp-play-red {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 50%;
   background: transparent;
   border: 0;
-  color: #e50914 !important;
+  color: #ffffff !important;
   cursor: pointer;
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background 160ms ease;
 }
 
 .fp-transport-main svg,
 .fp-transport-main.fp-play-red svg {
-  color: #e50914 !important;
-  fill: #e50914 !important;
+  color: #ffffff !important;
+  fill: #ffffff !important;
 }
 
 .fp-transport-main:hover {
-  background: rgba(229, 9, 20, 0.15);
+  background: rgba(255, 255, 255, 0.15);
   transform: scale(1.12);
 }
 

@@ -1098,67 +1098,13 @@ export default function PlayerShell({
             }}
           >
             <div className="fp-topbar-left">
-              {onBack && (
-                <button
-                  type="button"
-                  className="fp-btn fp-btn-ghost fp-top-close"
-                  onClick={onBack}
-                  aria-label={t('back')}
-                  title={t('back')}
-                >
-                  <CloseIcon size={24} />
-                </button>
-              )}
               <div className="fp-topbar-text">
                 <span className="fp-topbar-title">{title}</span>
                 {subtitle && <span className="fp-topbar-sub">{subtitle}</span>}
               </div>
-              {/* The rating line is the first thing to go when the stage is
-                  narrow: it is reference information (it is on the title's page
-                  too) and the title is not. */}
-              {!compact && (
-                <div className="fp-rating-wrap">
-                  <span className="fp-rating-pill">
-                    {ratingBadge || 'Rated U/A 13+'}
-                  </span>
-                  <span className="fp-rating-advisory">
-                    {contentAdvisory || 'frightening scenes, sexual content, violence, tobacco depictions, alcohol use'}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="fp-topbar-center">
-              <button
-                type="button"
-                className="fp-top-pip-btn"
-                onClick={togglePip}
-                title="Picture in Picture"
-                aria-label="Picture in Picture"
-              >
-                <PipIcon size={20} />
-              </button>
             </div>
 
             <div className="fp-topbar-right">
-              {engine === 'embed' && servers.length > 0 && (
-                <button
-                  type="button"
-                  className={`fp-top-server-btn${netMirrorOpen && netMirrorTab === 'server' ? ' is-open' : ''}`}
-                  onClick={() => {
-                    setNetMirrorTab('server');
-                    setNetMirrorOpen(!netMirrorOpen);
-                  }}
-                  title="Switch Streaming Server"
-                  aria-label="Switch Streaming Server"
-                >
-                  <span className="fp-top-server-icon" aria-hidden="true">⚡</span>
-                  <span className="fp-top-server-name">{servers.find((s) => s.id === activeServer)?.name ?? 'Server'}</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-              )}
 
               {onBack && (
                 <button
@@ -1225,13 +1171,13 @@ export default function PlayerShell({
               </button>
             )}
 
-            {/* Full-width seek bar */}
-            {(showSeekBar || engine === 'embed') && (
+            {/* Full-width seek bar — only when we have real time data */}
+            {showSeekBar && (
               <SeekBar
                 currentTime={snapshot.currentTime}
-                duration={snapshot.duration > 0 ? snapshot.duration : 2602}
+                duration={snapshot.duration}
                 buffered={snapshot.buffered}
-                seekable={canSeek || engine === 'embed'}
+                seekable={canSeek}
                 markers={markers}
                 scrubTime={scrubTime}
                 onScrub={setScrubTime}
@@ -1335,15 +1281,31 @@ export default function PlayerShell({
                 )}
               </div>
 
-              {/* Right Action Icons (Dialogue, CC, Settings, Fullscreen) */}
+              {/* Right: CC, Settings, PiP, Fullscreen — Netflix style */}
               <div className="fp-bar-right">
-                {/* Audio & Subtitles Dialog menu */}
+                {/* Subtitles / CC */}
                 <button
-                  ref={tracksBtn}
                   type="button"
-                  className={`fp-btn fp-top-btn${netMirrorOpen && netMirrorTab === 'audio' ? ' is-open' : ''}`}
+                  className={`fp-btn fp-top-btn fp-cc-btn${activeTextTrack ? ' is-active' : ''}`}
                   onClick={() => {
-                    if (netMirrorOpen && netMirrorTab === 'audio') {
+                    setNetMirrorTab('subtitles');
+                    setNetMirrorOpen(!netMirrorOpen || netMirrorTab !== 'subtitles');
+                    setMenu(null);
+                  }}
+                  aria-label="Subtitles"
+                  title="Subtitles (C)"
+                >
+                  <CcBoxIcon size={20} />
+                </button>
+
+                {/* Settings */}
+                <button
+                  ref={overflowBtn}
+                  type="button"
+                  className={`fp-btn fp-top-btn${netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed' || netMirrorTab === 'audio') ? ' is-open' : ''}`}
+                  onClick={() => {
+                    const isOpen = netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed' || netMirrorTab === 'audio');
+                    if (isOpen) {
                       setNetMirrorOpen(false);
                     } else {
                       setNetMirrorTab('audio');
@@ -1351,52 +1313,24 @@ export default function PlayerShell({
                       setMenu(null);
                     }
                   }}
-                  aria-label={t('audioAndSubtitles')}
-                  title={t('audioAndSubtitles')}
-                >
-                  <DialogueIcon size={22} />
-                </button>
-
-                {/* Closed Captions CC button */}
-                <button
-                  type="button"
-                  className={`fp-btn fp-top-btn fp-cc-btn${activeTextTrack || (netMirrorOpen && netMirrorTab === 'subtitles') ? ' is-active' : ''}`}
-                  onClick={() => {
-                    if (netMirrorOpen && netMirrorTab === 'subtitles') {
-                      setNetMirrorOpen(false);
-                    } else {
-                      setNetMirrorTab('subtitles');
-                      setNetMirrorOpen(true);
-                      setMenu(null);
-                    }
-                  }}
-                  aria-label="Subtitles (C)"
-                  title="Subtitles (C)"
-                >
-                  <CcBoxIcon size={22} />
-                </button>
-
-                {/* Settings Gear */}
-                <button
-                  ref={overflowBtn}
-                  type="button"
-                  className={`fp-btn fp-top-btn${netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed' || netMirrorTab === 'server') ? ' is-open' : ''}`}
-                  onClick={() => {
-                    if (netMirrorOpen && (netMirrorTab === 'quality' || netMirrorTab === 'speed' || netMirrorTab === 'server')) {
-                      setNetMirrorOpen(false);
-                    } else {
-                      setNetMirrorTab('quality');
-                      setNetMirrorOpen(true);
-                      setMenu(null);
-                    }
-                  }}
                   aria-label={t('settings')}
                   title={t('settings')}
                 >
-                  <SettingsGearIcon size={22} />
+                  <SettingsGearIcon size={20} />
                 </button>
 
-                {/* Fullscreen with Diagonal Expand Icon */}
+                {/* PiP */}
+                <button
+                  type="button"
+                  className="fp-btn fp-top-btn"
+                  onClick={togglePip}
+                  title="Picture in Picture"
+                  aria-label="Picture in Picture"
+                >
+                  <PipIcon size={20} />
+                </button>
+
+                {/* Fullscreen */}
                 <button
                   type="button"
                   className="fp-btn fp-top-btn"
@@ -1405,9 +1339,9 @@ export default function PlayerShell({
                   title={`${isFullscreen ? t('exitFullscreen') : t('fullscreen')} (F)`}
                 >
                   {isFullscreen || pseudoFullscreen ? (
-                    <ExitFullscreenIcon size={22} />
+                    <ExitFullscreenIcon size={20} />
                   ) : (
-                    <DiagonalFullscreenIcon size={22} />
+                    <DiagonalFullscreenIcon size={20} />
                   )}
                 </button>
               </div>
